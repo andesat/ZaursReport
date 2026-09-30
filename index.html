@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Zaurus Report</title>
+  <style>
+    :root {
+      --ui-font-size: 10.5pt;
+      --print-font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+    }
+
+    /* --- 基本スタイル & リセット --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", Arial, sans-serif; }
+    body { background-color: #f4f5f7; color: #222; line-height: 1.5; padding-bottom: 20px; -webkit-tap-highlight-color: transparent; font-size: var(--ui-font-size); }
+
+    /* --- ヘッダー領域 --- */
+    .app-header { background: #1e293b; color: #fff; padding: 10px 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .header-title-bar { text-align: center; font-size: calc(var(--ui-font-size) * 0.85); color: #94a3b8; font-family: monospace; margin-bottom: 8px; letter-spacing: 1px; }
+    .header-btn-bar { display: flex; gap: 6px; justify-content: space-between; align-items: center; position: relative; }
+    
+    /* --- コンテナ --- */
+    .container { max-width: 600px; margin: 0 auto; padding: 12px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* --- ボタン・UIパーツ --- */
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: calc(var(--ui-font-size) * 0.5) calc(var(--ui-font-size) * 0.8); font-size: var(--ui-font-size); font-weight: 600; border-radius: 6px; border: 1px solid #475569; background: #334155; color: #f8fafc; cursor: pointer; white-space: nowrap; transition: all 0.15s; }
+    .btn:active { background: #475569; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-light { background: #fff; color: #334155; border-color: #cbd5e1; }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-success { background: #16a34a; color: #fff; border-color: #16a34a; }
+    .btn-danger { color: #dc2626; border-color: #fca5a5; background: #fff; }
+    .btn-sm { padding: calc(var(--ui-font-size) * 0.3) calc(var(--ui-font-size) * 0.6); font-size: calc(var(--ui-font-size) * 0.85); }
+    .btn-back { font-size: var(--ui-font-size); padding: calc(var(--ui-font-size) * 0.5) calc(var(--ui-font-size) * 0.8); background: #0f172a; color: #38bdf8; border: 1px solid #0284c7; font-weight: bold; }
+
+    /* --- 検索 & チップバー --- */
+    .search-repo-bar { margin-bottom: 12px; background: #fff; border-radius: 8px; padding: 8px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 6px; }
+    .chips-container { display: flex; flex-wrap: wrap; gap: 6px; }
+    .filter-chip { display: inline-flex; align-items: center; gap: 4px; background: #e0f2fe; color: #0369a1; font-size: calc(var(--ui-font-size) * 0.8); padding: 2px 8px; border-radius: 12px; border: 1px solid #bae6fd; }
+    .filter-chip .chip-close { cursor: pointer; font-weight: bold; margin-left: 2px; }
+    .search-input-box { display: flex; gap: 6px; }
+    .search-input-box input { flex: 1; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--ui-font-size); }
+
+    /* --- 一覧リスト --- */
+    .year-divider { text-align: center; color: #64748b; font-size: calc(var(--ui-font-size) * 0.8); font-family: monospace; margin: 12px 0 6px 0; }
+    .report-list { display: flex; flex-direction: column; gap: 6px; }
+    
+    .report-item-content { background: #fff; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); cursor: pointer; user-select: none; border: 1px solid #e2e8f0; }
+    .report-item-content:active { background: #f8fafc; }
+    .report-item-title { font-size: var(--ui-font-size); font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; flex: 1; text-align: left; }
+    .report-item-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .report-date { font-size: calc(var(--ui-font-size) * 0.85); color: #475569; font-family: monospace; }
+    .btn-edit-icon { background: transparent; border: none; font-size: var(--ui-font-size); cursor: pointer; padding: 2px; }
+
+    /* --- 2. 編集画面 --- */
+    .editor-tags-box { background: #fff; padding: 8px 12px; border-radius: 8px; margin-top: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; }
+    .editor-tags-box label { font-size: calc(var(--ui-font-size) * 0.85); color: #64748b; font-weight: bold; }
+    .tag-input-group { display: flex; gap: 6px; margin-top: 4px; align-items: center; }
+    .tag-input-group input { flex: 1; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: var(--ui-font-size); }
+
+    /* 付箋追加バー */
+    .add-bar-wrapper { overflow-x: auto; margin-top: 12px; padding-bottom: 6px; scrollbar-width: thin; }
+    .add-bar { display: flex; gap: 6px; white-space: nowrap; width: max-content; }
+    .add-bar button { flex-shrink: 0; background: #fff; border: 1px dashed #3b82f6; padding: calc(var(--ui-font-size) * 0.4) calc(var(--ui-font-size) * 0.8); font-size: var(--ui-font-size); font-weight: 600; border-radius: 20px; color: #2563eb; cursor: pointer; transition: all 0.15s; }
+    .add-bar button:active { background: #eff6ff; }
+
+    /* --- 付箋（カード）表示 --- */
+    .card-list { display: flex; flex-direction: column; gap: 0; background: #fff; padding: 12px; border-radius: 8px; min-height: 400px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card { background: transparent; border: 1px dashed transparent; border-radius: 6px; padding: 1px 4px; position: relative; transition: border 0.15s, background-color 0.15s; margin: 0; }
+    .card.is-active { background: #f8fafc; border: 1px dashed #3b82f6; box-shadow: 0 2px 6px rgba(59,130,246,0.15); padding: 6px; margin: 2px 0; }
+
+    .card-tools { display: none; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; }
+    .card.is-active .card-tools { display: flex; }
+    .card-label { font-size: calc(var(--ui-font-size) * 0.75); font-weight: bold; color: #3b82f6; text-transform: uppercase; }
+    .card-actions { display: flex; gap: 4px; }
+
+    .card[data-type="title"] .view-content { font-size: calc(var(--ui-font-size) * 1.15); font-weight: bold; color: #0f172a; line-height: 1.4; text-align: center; }
+    .card[data-type="title"].has-underline .view-content { text-decoration: underline; }
+    .card[data-type="datetime"] .view-content { font-size: var(--ui-font-size); color: #475569; font-family: monospace; text-align: right; }
+    .card[data-type="text"] .view-content { font-size: var(--ui-font-size); color: #1e293b; line-height: 1.5; white-space: pre-wrap; word-break: break-all; text-align: left; }
+
+    .card-body textarea, .card-body input[type="text"] { width: 100%; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: var(--ui-font-size); background: #fff; }
+    .card-body textarea { resize: none; min-height: 50px; overflow-y: hidden; line-height: 1.5; }
+
+    /* 画像プレースホルダー */
+    .image-placeholder { width: 160px; height: 120px; background-color: #cbd5e1; border: 1px solid #94a3b8; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #475569; font-size: calc(var(--ui-font-size) * 0.85); margin: 4px auto; }
+
+    .image-grid { display: grid; gap: 8px; margin: 4px auto; justify-content: center; width: 100%; }
+    .image-grid.count-1 { grid-template-columns: minmax(120px, 260px); }
+    .image-grid.count-2, .image-grid.count-3, .image-grid.count-4 { grid-template-columns: repeat(2, 1fr); max-width: 100%; }
+    .image-grid img { width: 100%; height: auto; object-fit: cover; border-radius: 4px; max-height: 200px; display: block; margin: 0 auto; }
+    .image-container-box { display: flex; gap: 8px; align-items: center; justify-content: center; }
+    .image-container-box.pos-left { flex-direction: row-reverse; }
+
+    /* --- 表固有スタイル --- */
+    .table-wrapper { width: 100%; overflow-x: auto; touch-action: pan-x pan-y; position: relative; }
+    .table-zoom-container { transform-origin: top left; transition: transform 0.05s ease-out; width: 100%; }
+    .zaurus-table { width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; background: #fff; }
+    .zaurus-table th, .zaurus-table td { border: 1px solid #334155; padding: 4px 6px; font-size: calc(var(--ui-font-size) * 0.9); line-height: 1.3; word-break: break-all; position: relative; }
+    
+    .table-header-btn { background: #e2e8f0; color: #334155; font-size: calc(var(--ui-font-size) * 0.75); font-weight: bold; text-align: center; cursor: pointer; user-select: none; padding: 2px; border: 1px solid #cbd5e1; }
+    .table-header-btn:active { background: #cbd5e1; }
+    .card:not(.is-active) .table-header-row, .card:not(.is-active) .table-header-col { display: none !important; }
+
+    .align-left { text-align: left; }
+    .align-center { text-align: center; }
+    .align-right { text-align: right; }
+    .valign-top { vertical-align: top; }
+    .valign-middle { vertical-align: middle; }
+    .valign-bottom { vertical-align: bottom; }
+
+    /* ポップアップ */
+    .jog-popup { display: none; position: fixed; background: #1e293b; color: #fff; border-radius: 8px; padding: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); z-index: 300; font-size: var(--ui-font-size); max-height: 220px; overflow-y: auto; width: 220px; }
+    .jog-popup div { padding: 8px 12px; cursor: pointer; border-radius: 4px; text-align: left; border-bottom: 1px solid #334155; }
+    .jog-popup div:last-child { border-bottom: none; }
+    .jog-popup div:hover, .jog-popup div:active { background: #3b82f6; color: #fff; }
+
+    /* タグドロップダウンメニュー用スタイル */
+    .tag-menu-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #334155; text-align: left; font-size: var(--ui-font-size); user-select: none; }
+    .tag-menu-item:last-child { border-bottom: none; }
+    .tag-menu-item:hover, .tag-menu-item:active { background: #334155; }
+    .tag-menu-text { text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tag-menu-actions { display: none; gap: 4px; margin-left: 8px; }
+    .tag-menu-item.show-actions .tag-menu-actions { display: flex; }
+
+    /* モーダル */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 400; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .settings-modal { background: #fff; border-radius: 10px; width: 90%; max-width: 400px; padding: 18px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+    .settings-header { font-size: calc(var(--ui-font-size) * 1.1); font-weight: bold; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 14px; color: #0f172a; display: flex; justify-content: space-between; align-items: center; }
+    .settings-section { margin-bottom: 16px; }
+    .settings-label { font-size: var(--ui-font-size); font-weight: bold; color: #334155; margin-bottom: 6px; display: block; }
+    .settings-desc { font-size: calc(var(--ui-font-size) * 0.8); color: #64748b; margin-top: 4px; line-height: 1.4; }
+    .font-select-group { display: flex; gap: 16px; margin-top: 6px; }
+    .font-select-group label { display: flex; align-items: center; gap: 6px; font-size: var(--ui-font-size); cursor: pointer; }
+    .point-size-box { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+    .point-size-val { font-size: var(--ui-font-size); padding: 6px 16px; border-radius: 6px; background: #f1f5f9; border: 1px solid #cbd5e1; font-weight: bold; min-width: 70px; text-align: center; display: inline-block; }
+
+    .resize-guide-line { display: none; position: fixed; z-index: 500; pointer-events: none; }
+    .resize-guide-line.col { border-left: 2px dashed #2563eb; top: 0; bottom: 0; }
+    .resize-guide-line.row { border-top: 2px dashed #2563eb; left: 0; right: 0; }
+    .resize-tooltip { display: none; position: fixed; z-index: 501; background: #2563eb; color: #fff; font-size: calc(var(--ui-font-size) * 0.8); padding: 2px 6px; border-radius: 4px; font-weight: bold; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+
+    #a4-print-container { display: none; }
+
+    @media print {
+      body { background: #fff; padding: 0; margin: 0; }
+      .no-print, .container, .app-header, .modal-overlay, .jog-popup { display: none !important; }
+      #a4-print-container { display: block !important; }
+      .a4-paper { width: 210mm; height: 297mm; padding: 20mm !important; box-shadow: none; border: none; box-sizing: border-box; font-family: var(--print-font-family); display: flex; flex-direction: column; page-break-after: always; }
+      .out-text, .out-title, .out-datetime { word-break: break-all; white-space: pre-wrap; width: 100%; margin: 0; }
+      .a4-paper.mode-30 { font-size: 11.5pt; line-height: 24.2pt; gap: 0; }
+      .a4-paper.mode-40 { font-size: 10.5pt; line-height: 18.2pt; gap: 0; }
+      .a4-paper.mode-50 { font-size: 9.5pt; line-height: 14.5pt; gap: 0; }
+      .out-title { text-align: center; font-size: 1.4em; font-weight: bold; margin: 0; }
+      .out-title.underline { text-decoration: underline; }
+      .out-datetime { text-align: right; font-size: 0.9em; color: #333; margin: 0; }
+      .out-text { text-align: left; margin: 0; }
+      .out-table { width: 100%; border-collapse: collapse; margin: 2px 0; table-layout: fixed; }
+      .out-table td, .out-table th { border: 1px solid #333; padding: 4px; font-size: 0.95em; word-break: break-all; }
+      .out-image-box { display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: center; margin: 2px 0; width: 100%; }
+      .out-image-box .image-grid { display: flex; flex-direction: column; width: 100%; gap: 4px; align-items: center; }
+      .out-image-box img { max-width: 100%; max-height: 180px; object-fit: contain; }
+      .out-image-box .img-comment { font-size: 0.9em; flex: 1; text-align: center; }
+      @page { size: A4 portrait; margin: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ヘッダー -->
+  <header class="app-header no-print">
+    <div class="header-title-bar">------ Zaurus Report ------</div>
+    
+    <div id="header-bar-list" class="header-btn-bar">
+      <button class="btn" onclick="createNewReport()">新規</button>
+      <button class="btn" onclick="exportDatabase()">保存</button>
+      <button class="btn" onclick="triggerImportDatabase()">読込</button>
+      <input type="file" id="import-json-input" accept=".json" style="display: none;" onchange="importDatabase(event)">
+      <button class="btn" id="btn-undo-list" onclick="undo()" disabled>↩</button>
+      <button class="btn" id="btn-redo-list" onclick="redo()" disabled>↪</button>
+      <button class="btn" onclick="toggleTagMenu(event)">タグ</button>
+
+      <div id="tag-dropdown-menu" class="jog-popup" style="width: auto; min-width: 220px; max-width: 300px;"></div>
+    </div>
+
+    <div id="header-bar-editor" class="header-btn-bar" style="display: none;">
+      <button class="btn btn-back" onclick="switchView('list')">＜</button>
+      <div style="display: flex; gap: 6px; align-items: center;">
+        <button class="btn" id="btn-undo-editor" onclick="undo()" disabled>↩</button>
+        <button class="btn" id="btn-redo-editor" onclick="redo()" disabled>↪</button>
+        <button class="btn btn-success" onclick="triggerDirectPrint()">印刷</button>
+        <button class="btn btn-primary" onclick="openSettingsModal()">設定</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container no-print">
+
+    <!-- 1. 一覧表示画面 -->
+    <section id="view-list" class="view active">
+      <div class="search-repo-bar">
+        <div id="chips-container" class="chips-container"></div>
+        <div class="search-input-box">
+          <input type="text" id="search-input" placeholder="(検索)" onkeydown="handleSearchKeyDown(event)" onblur="addSearchFilterFromInput()">
+          <button class="btn btn-primary" onclick="generateAndCopyRepo()">Repo</button>
+        </div>
+      </div>
+      <div id="report-list-container"></div>
+    </section>
+
+    <!-- 2. 付箋編集画面 -->
+    <section id="view-editor" class="view">
+
+      <div id="card-list" class="card-list"></div>
+
+      <div class="add-bar-wrapper">
+        <div class="add-bar">
+          <button onclick="addCard('title')">＋ タイトル</button>
+          <button onclick="addCard('datetime')">＋ 日時</button>
+          <button onclick="addCard('text')">＋ テキスト</button>
+          <button onclick="addCard('table')">＋ 表</button>
+          <button onclick="addCard('image')">＋ 画像</button>
+        </div>
+      </div>
+
+      <div class="editor-tags-box">
+        <label>タグ [ ※カンマ区切り ]</label>
+        <div class="tag-input-group">
+          <input type="text" id="report-tags" placeholder="指導案, 数学, 3年生" onchange="updateCurrentTags()" onclick="openTagPicker(event)">
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div id="jog-popup" class="jog-popup"></div>
+
+  <!-- 設定モーダル -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="settings-modal">
+      <div class="settings-header">
+        <span>設定</span>
+        <button class="btn btn-sm btn-light" onclick="closeSettingsModal()">✕</button>
+      </div>
+      
+      <div class="settings-section">
+        <span class="settings-label">・印刷時のフォント</span>
+        <div class="font-select-group">
+          <label><input type="radio" name="print-font" value="mincho" onchange="updatePrintFont(this.value)"> 明朝</label>
+          <label><input type="radio" name="print-font" value="gothic" checked onchange="updatePrintFont(this.value)"> ゴシック</label>
+        </div>
+        <div class="settings-desc">※どちらかにチェックを入れると印刷時に変更できます。通常の入力時はゴシックオンリーです。</div>
+      </div>
+
+      <div class="settings-section">
+        <span class="settings-label">・表示ポイントサイズ</span>
+        <div class="point-size-box">
+          <span id="btn-point-size-display" class="point-size-val">10.5</span>
+          <button type="button" class="btn btn-sm btn-light" onclick="changePointSize(-0.5)">▽</button>
+          <button type="button" class="btn btn-sm btn-light" onclick="changePointSize(0.5)">△</button>
+          <span style="font-size: var(--ui-font-size);">ポイント</span>
+        </div>
+        <div class="settings-desc">※▽△ボタンをタップすると0.5ポイント毎にリアルタイムで画面全体のフォントサイズが変更されます（下限7.0 / 上限20.0）。</div>
+      </div>
+
+      <div style="text-align: right; margin-top: 20px;">
+        <button class="btn btn-primary" onclick="closeSettingsModal()">完了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 一覧レポート操作ポップアップモーダル -->
+  <div id="report-action-modal" class="modal-overlay" onclick="closeReportActionModal()">
+    <div class="settings-modal" style="text-align: center; max-width: 320px;" onclick="event.stopPropagation()">
+      <div id="report-action-title" style="font-weight: bold; margin-bottom: 16px; font-size: var(--ui-font-size); word-break: break-all;"></div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn btn-primary" id="btn-modal-copy">コピー</button>
+        <button class="btn btn-danger" id="btn-modal-delete">削除</button>
+        <button class="btn btn-light" onclick="closeReportActionModal()">キャンセル</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="guide-line-col" class="resize-guide-line col"></div>
+  <div id="guide-line-row" class="resize-guide-line row"></div>
+  <div id="resize-tooltip" class="resize-tooltip"></div>
+
+  <div id="a4-print-container">
+    <div id="a4-target" class="a4-paper mode-40"></div>
+  </div>
+
+  <script>
+    let reports = [
+      {
+        id: 1,
+        tags: ["進行", "全体"],
+        cards: [
+          { id: 'c10', type: 'title', text: '全校集会の進行について', underline: true },
+          { id: 'c11', type: 'datetime', autoUpdate: false, text: '2026/09/28 09:00', assignee: '教務部' },
+          { id: 'c12', type: 'text', text: '1. 開会の言葉\n2. 校長先生のお話\n3. 児童会からの連絡' }
+        ]
+      },
+      {
+        id: 2,
+        tags: ["指導案", "図工", "3年"],
+        cards: [
+          { id: 'c20', type: 'title', text: '第３学年図工指導案', underline: false },
+          { id: 'c21', type: 'datetime', autoUpdate: false, text: '2026/09/28 10:00', assignee: '山田 太郎' },
+          { id: 'c22', type: 'text', text: '【題材名】絵の具とふでで広がる世界' }
+        ]
+      },
+      {
+        id: 3,
+        tags: ["指導案", "算数", "3年"],
+        cards: [
+          { id: 'c1', type: 'title', text: '第３学年算数指導案', underline: true },
+          { id: 'c2', type: 'datetime', autoUpdate: false, text: '2026/09/28 11:00', assignee: '山田 太郎' },
+          { id: 'c3', type: 'text', text: '【本時の目標】\n1. 図形の特徴を理解し、正しく分類することができる。' },
+          { 
+            id: 'c4', type: 'table', rows: 2, cols: 2, zoom: 1.0,
+            colAligns: ['auto', 'auto'], rowAligns: ['auto', 'auto'],
+            colWidths: [120, 120], rowHeights: [30, 30],
+            data: [['展開段階', '時間'], ['導入・課題把握', '10分']] 
+          }
+        ]
+      }
+    ];
+
+    let currentReportId = 1;
+    let activeCardId = null;
+    let activeFilters = [];
+
+    let currentPointSize = 10.5;
+    let currentPrintFont = 'gothic';
+
+    let historyStack = [];
+    let historyIndex = -1;
+    const MAX_HISTORY = 50;
+
+    function pushHistory() {
+      const state = JSON.stringify(reports);
+      if (historyIndex < historyStack.length - 1) {
+        historyStack = historyStack.slice(0, historyIndex + 1);
+      }
+      historyStack.push(state);
+      if (historyStack.length > MAX_HISTORY) historyStack.shift();
+      else historyIndex++;
+      updateUndoRedoButtons();
+    }
+
+    function undo() {
+      if (historyIndex > 0) {
+        historyIndex--;
+        reports = JSON.parse(historyStack[historyIndex]);
+        renderReportList();
+        if (currentReportId) loadReportToEditor(currentReportId, false);
+        updateUndoRedoButtons();
+      }
+    }
+
+    function redo() {
+      if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        reports = JSON.parse(historyStack[historyIndex]);
+        renderReportList();
+        if (currentReportId) loadReportToEditor(currentReportId, false);
+        updateUndoRedoButtons();
+      }
+    }
+
+    function updateUndoRedoButtons() {
+      const disableUndo = (historyIndex <= 0);
+      const disableRedo = (historyIndex >= historyStack.length - 1);
+      
+      const btnUndoList = document.getElementById('btn-undo-list');
+      const btnRedoList = document.getElementById('btn-redo-list');
+      const btnUndoEditor = document.getElementById('btn-undo-editor');
+      const btnRedoEditor = document.getElementById('btn-redo-editor');
+
+      if (btnUndoList) btnUndoList.disabled = disableUndo;
+      if (btnRedoList) btnRedoList.disabled = disableRedo;
+      if (btnUndoEditor) btnUndoEditor.disabled = disableUndo;
+      if (btnRedoEditor) btnRedoEditor.disabled = disableRedo;
+    }
+
+    function pushToFront(reportId) {
+      const idx = reports.findIndex(r => r.id === reportId);
+      if (idx > 0) {
+        const [target] = reports.splice(idx, 1);
+        reports.unshift(target);
+      }
+    }
+
+    window.onload = () => {
+      pushHistory();
+      renderReportList();
+      setInterval(updateLiveDateTimes, 1000);
+
+      document.addEventListener('focusout', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          pushHistory();
+        }
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.card') && !e.target.closest('.jog-popup') && !e.target.closest('.settings-modal') && !e.target.closest('.editor-tags-box')) {
+          activeCardId = null;
+          renderCards();
+        }
+      });
+    };
+
+    function switchView(viewName) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(`view-${viewName}`).classList.add('active');
+
+      const headerList = document.getElementById('header-bar-list');
+      const headerEditor = document.getElementById('header-bar-editor');
+
+      if (viewName === 'editor') {
+        headerList.style.display = 'none';
+        headerEditor.style.display = 'flex';
+      } else {
+        headerList.style.display = 'flex';
+        headerEditor.style.display = 'none';
+      }
+    }
+
+    function parseDateInfo(cardText) {
+      if (!cardText) return { year: '２０２６年', display: '--/--' };
+      const match = cardText.match(/(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})/);
+      if (match) {
+        const y = match[1];
+        const m = match[2].padStart(2, '0');
+        const d = match[3].padStart(2, '0');
+        const dateObj = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        const days = ['日', '月', '火', '水', '木', '金', '土'];
+        const dayStr = days[dateObj.getDay()] || '';
+        const zenYear = y.replace(/[0-9]/g, s => String.fromCharCode(s.charCodeAt(0) + 0xfee0)) + '年';
+        return { year: zenYear, display: `${m}/${d}(${dayStr})` };
+      }
+      return { year: '２０２６年', display: '--/--' };
+    }
+
+    function matchesFilters(report) {
+      if (activeFilters.length === 0) return true;
+      const texts = [];
+      if (report.tags) report.tags.forEach(t => texts.push(t));
+      if (report.cards) {
+        report.cards.forEach(c => {
+          if (c.text) texts.push(c.text);
+          if (c.assignee) texts.push(c.assignee);
+          if (c.comment) texts.push(c.comment);
+          if (c.data && Array.isArray(c.data)) {
+            c.data.forEach(r => r.forEach(cell => texts.push(cell)));
+          }
+        });
+      }
+      const fullText = texts.join(' ').toLowerCase();
+
+      return activeFilters.every(f => {
+        const val = f.value.toLowerCase();
+        if (f.type === 'tag') return report.tags && report.tags.some(t => t.toLowerCase().includes(val));
+        else return fullText.includes(val);
+      });
+    }
+
+    function renderReportList() {
+      const container = document.getElementById('report-list-container');
+      container.innerHTML = '';
+      const filtered = reports.filter(matchesFilters);
+
+      const grouped = {};
+      filtered.forEach(rep => {
+        const dateCard = rep.cards.find(c => c.type === 'datetime');
+        const dateInfo = parseDateInfo(dateCard ? dateCard.text : '');
+        if (!grouped[dateInfo.year]) grouped[dateInfo.year] = [];
+        grouped[dateInfo.year].push({ report: rep, dateDisplay: dateInfo.display });
+      });
+
+      Object.keys(grouped).forEach(year => {
+        const yearDiv = document.createElement('div');
+        yearDiv.className = 'year-divider';
+        yearDiv.innerText = `---------- ${year} ----------`;
+        container.appendChild(yearDiv);
+
+        const listDiv = document.createElement('div');
+        listDiv.className = 'report-list';
+
+        grouped[year].forEach(item => {
+          const rep = item.report;
+          const titleCard = rep.cards.find(c => c.type === 'title');
+          const titleText = titleCard ? titleCard.text : '(無題のレポート)';
+
+          const itemEl = document.createElement('div');
+          itemEl.className = 'report-item-content';
+          itemEl.id = `item-content-${rep.id}`;
+
+          itemEl.innerHTML = `
+            <span class="report-item-title">${escapeHtml(titleText)}</span>
+            <div class="report-item-meta">
+              <span class="report-date">${escapeHtml(item.dateDisplay)}</span>
+              <button class="btn-edit-icon" onclick="event.stopPropagation(); openEditor(${rep.id})">✏️</button>
+            </div>
+          `;
+
+          setupReportItemHold(itemEl, rep.id, titleText);
+
+          listDiv.appendChild(itemEl);
+        });
+
+        container.appendChild(listDiv);
+      });
+
+      renderChips();
+    }
+
+    /* 一覧タイトルの長押し（ポップアップメニュー表示）処理 */
+    let targetReportIdForAction = null;
+    let reportHoldTimer = null;
+    let isReportHold = false;
+    let reportStartX = 0, reportStartY = 0;
+
+    function setupReportItemHold(el, repId, titleText) {
+      const startHold = (e) => {
+        isReportHold = false;
+        reportStartX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        reportStartY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+
+        reportHoldTimer = setTimeout(() => {
+          isReportHold = true;
+          openReportActionModal(repId, titleText);
+        }, 450);
+      };
+
+      const cancelHold = (e) => {
+        if (e.type === 'pointermove' || e.type === 'touchmove') {
+          const moveX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+          const moveY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+          if (Math.abs(moveX - reportStartX) > 10 || Math.abs(moveY - reportStartY) > 10) {
+            clearTimeout(reportHoldTimer);
+          }
+        } else {
+          clearTimeout(reportHoldTimer);
+        }
+      };
+
+      el.addEventListener('pointerdown', startHold);
+      el.addEventListener('pointermove', cancelHold);
+      el.addEventListener('pointerup', cancelHold);
+      el.addEventListener('pointerleave', cancelHold);
+
+      el.onclick = (e) => {
+        if (isReportHold) {
+          e.stopPropagation();
+          e.preventDefault();
+          isReportHold = false;
+          return;
+        }
+        openEditor(repId);
+      };
+    }
+
+    function openReportActionModal(id, titleText) {
+      targetReportIdForAction = id;
+      document.getElementById('report-action-title').innerText = titleText || '(無題のレポート)';
+
+      const copyBtn = document.getElementById('btn-modal-copy');
+      const deleteBtn = document.getElementById('btn-modal-delete');
+
+      copyBtn.onclick = () => {
+        copyReport(targetReportIdForAction);
+        closeReportActionModal();
+      };
+
+      deleteBtn.onclick = () => {
+        closeReportActionModal();
+        deleteReport(targetReportIdForAction);
+      };
+
+      document.getElementById('report-action-modal').classList.add('active');
+    }
+
+    function closeReportActionModal() {
+      document.getElementById('report-action-modal').classList.remove('active');
+      targetReportIdForAction = null;
+    }
+
+    function handleSearchKeyDown(e) {
+      if (e.key === 'Enter') addSearchFilterFromInput();
+    }
+
+    function addSearchFilterFromInput() {
+      const input = document.getElementById('search-input');
+      const val = input.value.trim();
+      if (val) {
+        activeFilters.push({ type: 'search', value: val });
+        input.value = '';
+        renderReportList();
+      }
+    }
+
+    function removeFilter(index) {
+      activeFilters.splice(index, 1);
+      renderReportList();
+    }
+
+    function renderChips() {
+      const container = document.getElementById('chips-container');
+      container.innerHTML = '';
+      activeFilters.forEach((f, idx) => {
+        const chip = document.createElement('span');
+        chip.className = 'filter-chip';
+        const icon = f.type === 'tag' ? '🏷️' : '🔍';
+        chip.innerHTML = `${icon} ${escapeHtml(f.value)} <span class="chip-close" onclick="removeFilter(${idx})">×</span>`;
+        container.appendChild(chip);
+      });
+    }
+
+    /* タグメニュー（50音順・左寄せ・長押し「改名/削除」） */
+    function toggleTagMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('tag-dropdown-menu');
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+        return;
+      }
+      const tagSet = new Set();
+      reports.forEach(r => { if (r.tags) r.tags.forEach(t => tagSet.add(t)); });
+      menu.innerHTML = '';
+
+      if (tagSet.size === 0) {
+        menu.innerHTML = `<div style="padding: 8px 12px; color:#94a3b8; text-align:left;">(タグなし)</div>`;
+      } else {
+        const sortedTags = Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'ja'));
+
+        sortedTags.forEach(t => {
+          const item = document.createElement('div');
+          item.className = 'tag-menu-item';
+          item.innerHTML = `
+            <span class="tag-menu-text">🏷️ ${escapeHtml(t)}</span>
+            <div class="tag-menu-actions">
+              <button class="btn btn-sm btn-primary tag-action-btn" onclick="renameTag('${escapeHtml(t)}', event)">改名</button>
+              <button class="btn btn-sm btn-danger tag-action-btn" onclick="deleteTag('${escapeHtml(t)}', event)">削除</button>
+            </div>
+          `;
+
+          let tagHoldTimer = null;
+          let isHold = false;
+
+          const startHold = () => {
+            isHold = false;
+            tagHoldTimer = setTimeout(() => {
+              isHold = true;
+              item.classList.add('show-actions');
+            }, 400);
+          };
+
+          const cancelHold = () => {
+            clearTimeout(tagHoldTimer);
+          };
+
+          item.addEventListener('pointerdown', startHold);
+          item.addEventListener('pointerup', cancelHold);
+          item.addEventListener('pointerleave', cancelHold);
+
+          item.onclick = (e) => {
+            if (e.target.closest('.tag-action-btn')) return;
+            if (isHold) {
+              isHold = false;
+              return;
+            }
+            activeFilters.push({ type: 'tag', value: t });
+            menu.style.display = 'none';
+            renderReportList();
+          };
+
+          menu.appendChild(item);
+        });
+      }
+
+      const rect = e.target.getBoundingClientRect();
+      menu.style.left = `${Math.min(rect.left, window.innerWidth - 230)}px`;
+      menu.style.top = `${rect.bottom + 6}px`;
+      menu.style.bottom = 'auto';
+      menu.style.display = 'block';
+    }
+
+    function renameTag(oldTag, e) {
+      if (e) e.stopPropagation();
+      const newTag = prompt(`タグ「${oldTag}」の新しい名称を入力してください:`, oldTag);
+      if (newTag === null) return;
+      const trimmed = newTag.trim();
+      if (!trimmed || trimmed === oldTag) return;
+
+      reports.forEach(r => {
+        if (r.tags) {
+          r.tags = r.tags.map(t => (t === oldTag ? trimmed : t));
+          r.tags = Array.from(new Set(r.tags));
+        }
+      });
+
+      activeFilters.forEach(f => {
+        if (f.type === 'tag' && f.value === oldTag) f.value = trimmed;
+      });
+
+      pushHistory();
+      renderReportList();
+      document.getElementById('tag-dropdown-menu').style.display = 'none';
+    }
+
+    function deleteTag(tag, e) {
+      if (e) e.stopPropagation();
+      if (!confirm(`タグ「${tag}」を削除しますか？\n紐づいているすべてのレポートからこのタグが削除されます。`)) return;
+
+      reports.forEach(r => {
+        if (r.tags) {
+          r.tags = r.tags.filter(t => t !== tag);
+        }
+      });
+
+      activeFilters = activeFilters.filter(f => !(f.type === 'tag' && f.value === tag));
+
+      pushHistory();
+      renderReportList();
+      document.getElementById('tag-dropdown-menu').style.display = 'none';
+    }
+
+    /* タグピッカー */
+    function openTagPicker(e) {
+      e.stopPropagation();
+      const popup = document.getElementById('jog-popup');
+      const tagSet = new Set();
+      reports.forEach(r => { if (r.tags) r.tags.forEach(t => tagSet.add(t)); });
+
+      let itemsHtml = `<div style="background:#2563eb; color:#fff; font-weight:bold; position:sticky; top:0; z-index:10; text-align:left;" onclick="activateTagInput()">＋ 新規タグを追加</div>`;
+      
+      const sortedTags = Array.from(tagSet).sort((a, b) => a.localeCompare(b, 'ja'));
+      sortedTags.forEach(t => {
+        itemsHtml += `<div style="text-align:left;" onclick="selectExistingTag('${escapeHtml(t)}')">🏷️ ${escapeHtml(t)}</div>`;
+      });
+
+      popup.innerHTML = itemsHtml;
+      
+      const rect = e.target.getBoundingClientRect();
+      popup.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 230))}px`;
+      popup.style.top = 'auto';
+      popup.style.bottom = `${window.innerHeight - rect.top + 6}px`;
+      popup.style.maxHeight = '200px';
+      popup.style.overflowY = 'auto';
+      popup.style.display = 'block';
+    }
+
+    function activateTagInput() {
+      document.getElementById('jog-popup').style.display = 'none';
+      const input = document.getElementById('report-tags');
+      input.focus();
+      const val = input.value;
+      if (val && !val.endsWith(', ')) {
+        input.value = val + (val.length > 0 ? ', ' : '');
+      }
+    }
+
+    function selectExistingTag(tagName) {
+      const rep = getActiveReport();
+      if (!rep) return;
+      if (!rep.tags) rep.tags = [];
+      if (!rep.tags.includes(tagName)) {
+        rep.tags.push(tagName);
+      }
+      document.getElementById('report-tags').value = rep.tags.join(', ');
+      document.getElementById('jog-popup').style.display = 'none';
+      pushToFront(rep.id);
+      pushHistory();
+      renderReportList();
+    }
+
+    function createNewReport() {
+      const newId = Date.now();
+      const nowStr = new Date().toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      const newRep = {
+        id: newId,
+        tags: ["新規"],
+        cards: [
+          { id: 'c_' + Date.now(), type: 'title', text: '新規レポートタイトル', underline: false },
+          { id: 'c_' + (Date.now()+1), type: 'datetime', autoUpdate: true, text: nowStr, assignee: '' }
+        ]
+      };
+      reports.unshift(newRep);
+      pushHistory();
+      renderReportList();
+      openEditor(newId);
+    }
+
+    function copyReport(id) {
+      const idx = reports.findIndex(r => r.id === id);
+      if (idx === -1) return;
+      const original = reports[idx];
+      const copied = JSON.parse(JSON.stringify(original));
+      copied.id = Date.now();
+      reports.splice(idx + 1, 0, copied);
+      pushHistory();
+      renderReportList();
+    }
+
+    function deleteReport(id) {
+      if (!confirm('このレポートを削除しますか？')) return;
+      reports = reports.filter(r => r.id !== id);
+      pushHistory();
+      renderReportList();
+    }
+
+    function openEditor(id) {
+      pushToFront(id);
+      currentReportId = id;
+      activeCardId = null;
+      loadReportToEditor(id);
+      switchView('editor');
+    }
+
+    async function generateAndCopyRepo() {
+      const filtered = reports.filter(matchesFilters);
+      if (filtered.length === 0) {
+        alert('出力対象のレポートがありません。');
+        return;
+      }
+      const borderText = '--------------------------------------------------------------------';
+      let htmlContent = `<div style="font-family: sans-serif; line-height: 1.5;">`;
+      let plainContent = '';
+
+      filtered.forEach((rep, index) => {
+        if (index > 0) {
+          htmlContent += `<div style="margin: 16px 0; color: #64748b; font-family: monospace;">${borderText}</div>`;
+          plainContent += `\n${borderText}\n\n`;
+        }
+
+        rep.cards.forEach(card => {
+          if (card.type === 'title') {
+            const u = card.underline ? 'text-decoration: underline;' : '';
+            htmlContent += `<h2 style="margin: 0; text-align: center; ${u}">${escapeHtml(card.text)}</h2>`;
+            plainContent += `${card.text}\n`;
+          } else if (card.type === 'datetime') {
+            let dt = card.text || '';
+            if (card.assignee) dt += ` ${card.assignee}`;
+            htmlContent += `<div style="color: #475569; font-size: 0.85em; margin: 0; text-align: right;">${escapeHtml(dt)}</div>`;
+            plainContent += `${dt}\n`;
+          } else if (card.type === 'text') {
+            htmlContent += `<p style="margin: 0; white-space: pre-wrap; text-align: left;">${escapeHtml(card.text)}</p>`;
+            plainContent += `${card.text}\n`;
+          } else if (card.type === 'table') {
+            htmlContent += `<table border="1" style="border-collapse: collapse; width: 100%; margin: 2px 0;">`;
+            for (let r = 0; r < card.rows; r++) {
+              htmlContent += `<tr>`;
+              for (let c = 0; c < card.cols; c++) {
+                const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
+                htmlContent += `<td style="padding: 4px; border: 1px solid #cbd5e1;">${escapeHtml(val)}</td>`;
+                plainContent += `[${val}] `;
+              }
+              htmlContent += `</tr>`;
+              plainContent += `\n`;
+            }
+            htmlContent += `</table>`;
+          } else if (card.type === 'image') {
+            const imgs = card.images || (card.src ? [card.src] : []);
+            imgs.forEach(src => {
+              htmlContent += `<div style="margin: 2px 0; text-align: center;"><img src="${src}" style="max-width: 100%; height: auto;"></div>`;
+            });
+            if (imgs.length === 1 && card.comment) {
+              htmlContent += `<p style="font-size:0.85em; text-align: center;">${escapeHtml(card.comment)}</p>`;
+            }
+            plainContent += `[画像 ${imgs.length}枚]\n`;
+          }
+        });
+      });
+
+      htmlContent += `</div>`;
+
+      try {
+        const blobHtml = new Blob([htmlContent], { type: 'text/html' });
+        const blobText = new Blob([plainContent], { type: 'text/plain' });
+        const data = [new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText })];
+        await navigator.clipboard.write(data);
+        alert(`${filtered.length} 件のレポートをリッチテキスト形式でクリップボードにコピーしました！`);
+      } catch (err) {
+        navigator.clipboard.writeText(plainContent).then(() => {
+          alert(`${filtered.length} 件のレポートをテキスト形式でクリップボードにコピーしました。`);
+        });
+      }
+    }
+
+    function exportDatabase() {
+      const jsonStr = JSON.stringify(reports, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const fileName = `zaurus_reports_${new Date().toISOString().slice(0,10)}.json`;
+      const file = new File([blob], fileName, { type: 'application/json' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: 'Zaurus Report Data' }).catch(() => downloadFile(blob, fileName));
+      } else {
+        downloadFile(blob, fileName);
+      }
+    }
+
+    function downloadFile(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function triggerImportDatabase() {
+      document.getElementById('import-json-input').click();
+    }
+
+    function importDatabase(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (Array.isArray(data)) {
+            reports = data;
+            pushHistory();
+            renderReportList();
+            alert('データベースを読み込みました。');
+          }
+        } catch (err) {
+          alert('ファイルの読み込みに失敗しました。');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function getActiveReport() {
+      return reports.find(r => r.id === currentReportId);
+    }
+
+    function loadReportToEditor(id, shouldRenderList = true) {
+      const rep = getActiveReport();
+      if (!rep) return;
+      document.getElementById('report-tags').value = rep.tags ? rep.tags.join(', ') : '';
+      renderCards();
+      if (shouldRenderList) renderReportList();
+    }
+
+    function updateCurrentTags() {
+      const rep = getActiveReport();
+      if (!rep) return;
+      const val = document.getElementById('report-tags').value;
+      rep.tags = val.split(',').map(s => s.trim()).filter(s => s);
+      pushToFront(rep.id);
+      pushHistory();
+      renderReportList();
+    }
+
+    function isRightAlignedValue(val) {
+      if (!val) return false;
+      const trimmed = val.trim();
+      const numPattern = /^[\$￥¥]?[+-]?[\d,]+(\.\d+)?%?円?$/;
+      const datePattern = /^\d{4}[\/\.-]\d{1,2}[\/\.-]\d{1,2}$/;
+      return numPattern.test(trimmed) || datePattern.test(trimmed);
+    }
+
+    /* 付箋カードの描画ロジック */
+    function renderCards() {
+      const rep = getActiveReport();
+      const container = document.getElementById('card-list');
+      container.innerHTML = '';
+      if (!rep) return;
+
+      rep.cards.forEach((card, index) => {
+        const cardEl = document.createElement('div');
+        const isActive = (card.id === activeCardId);
+        cardEl.className = `card ${isActive ? 'is-active' : ''} ${card.underline ? 'has-underline' : ''}`;
+        cardEl.setAttribute('data-type', card.type);
+        cardEl.id = `card-${card.id}`;
+
+        cardEl.onclick = (e) => {
+          e.stopPropagation();
+          if (activeCardId !== card.id) {
+            activeCardId = card.id;
+            renderCards();
+          }
+        };
+
+        let bodyHtml = '';
+
+        if (!isActive) {
+          if (card.type === 'title') {
+            bodyHtml = `<div class="view-content">${escapeHtml(card.text)}</div>`;
+          } else if (card.type === 'datetime') {
+            let dt = card.text || '';
+            if (card.assignee) dt += ` ${card.assignee}`;
+            bodyHtml = `<div class="view-content">${escapeHtml(dt)}</div>`;
+          } else if (card.type === 'text') {
+            bodyHtml = `<div class="view-content">${escapeHtml(card.text)}</div>`;
+          } else if (card.type === 'table') {
+            bodyHtml = renderViewTable(card);
+          } else if (card.type === 'image') {
+            bodyHtml = renderViewImage(card);
+          }
+        } else {
+          if (card.type === 'title') {
+            bodyHtml = `
+              <input type="text" value="${escapeHtml(card.text)}" oninput="updateCardText('${card.id}', this.value)" style="text-align: center; font-weight: bold;">
+              <label style="font-size:calc(var(--ui-font-size) * 0.8); margin-top:4px; display:inline-block;">
+                <input type="checkbox" ${card.underline ? 'checked' : ''} onchange="toggleUnderline('${card.id}', this.checked)"> 下線をつける
+              </label>
+            `;
+          } else if (card.type === 'datetime') {
+            bodyHtml = `
+              <div style="display:flex; gap:8px; margin-bottom:4px;">
+                <input type="text" value="${escapeHtml(card.text)}" oninput="updateCardDateText('${card.id}', this.value)" style="flex:2;" placeholder="日時">
+                <input type="text" value="${escapeHtml(card.assignee || '')}" oninput="updateCardAssignee('${card.id}', this.value)" style="flex:1;" placeholder="担当者名">
+              </div>
+              <label style="font-size:calc(var(--ui-font-size) * 0.8); display:inline-block;">
+                <input type="checkbox" id="chk-auto-${card.id}" ${card.autoUpdate ? 'checked' : ''} onchange="toggleAutoUpdate('${card.id}', this.checked)"> リアルタイム自動更新
+              </label>
+            `;
+          } else if (card.type === 'text') {
+            bodyHtml = `<textarea oninput="updateCardText('${card.id}', this.value); autoResizeTextarea(this);">${escapeHtml(card.text)}</textarea>`;
+          } else if (card.type === 'table') {
+            bodyHtml = `
+              <div style="display:flex; gap:8px; margin-bottom:6px; align-items:center;">
+                <label style="font-size:calc(var(--ui-font-size) * 0.8);">行:</label>
+                <select onchange="changeTableSize('${card.id}', this.value, ${card.cols})" style="padding:2px 4px;">
+                  ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${n===card.rows?'selected':''}>${n}</option>`).join('')}
+                </select>
+                <label style="font-size:calc(var(--ui-font-size) * 0.8);">列:</label>
+                <select onchange="changeTableSize('${card.id}', ${card.rows}, this.value)" style="padding:2px 4px;">
+                  ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${n===card.cols?'selected':''}>${n}</option>`).join('')}
+                </select>
+                <span style="font-size:calc(var(--ui-font-size) * 0.7); color:#64748b;">(2本指ズーム/ピンチ対応)</span>
+              </div>
+              ${renderEditableTable(card)}
+            `;
+          } else if (card.type === 'image') {
+            const imgs = card.images || (card.src ? [card.src] : []);
+            const isCommentDisabled = imgs.length >= 2;
+            bodyHtml = `
+              <div style="margin-bottom:6px; text-align: center;">
+                <input type="file" accept="image/*" multiple onchange="handleImageUpload('${card.id}', this)" ${imgs.length >= 4 ? 'disabled' : ''}>
+                <span style="font-size:calc(var(--ui-font-size) * 0.7); color:#64748b; display:block;">(最大4枚/横2列まで表示/自動圧縮)</span>
+              </div>
+              ${renderViewImage(card)}
+              <div style="margin-top:8px; display:flex; gap:8px; ${isCommentDisabled ? 'opacity:0.4;' : ''}">
+                <input type="text" placeholder="${isCommentDisabled ? '画像2枚以上のためコメント不可' : 'コメント記入'}" 
+                       value="${escapeHtml(card.comment || '')}" 
+                       oninput="updateImageComment('${card.id}', this.value)" 
+                       ${isCommentDisabled ? 'disabled' : ''}>
+                <select onchange="updateImagePos('${card.id}', this.value)" ${isCommentDisabled ? 'disabled' : ''}>
+                  <option value="right" ${card.commentPos==='right'?'selected':''}>右</option>
+                  <option value="left" ${card.commentPos==='left'?'selected':''}>左</option>
+                </select>
+              </div>
+            `;
+          }
+        }
+
+        const canMerge = (index > 0 && rep.cards[index-1].type === 'text' && card.type === 'text');
+
+        cardEl.innerHTML = `
+          <div class="card-tools">
+            <span class="card-label">${card.type} 付箋</span>
+            <div class="card-actions">
+              ${canMerge ? `<button class="btn btn-sm btn-primary" onclick="mergeCard(${index})">⤺ 合体</button>` : ''}
+              <button class="btn btn-sm btn-light" onclick="moveCard(${index}, -1)">▲</button>
+              <button class="btn btn-sm btn-light" onclick="moveCard(${index}, 1)">▼</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCard('${card.id}')">✕</button>
+            </div>
+          </div>
+          <div class="card-body">${bodyHtml}</div>
+        `;
+        container.appendChild(cardEl);
+
+        if (isActive && card.type === 'table') {
+          setupPinchZoom(card.id);
+        }
+      });
+
+      setTimeout(() => {
+        document.querySelectorAll('.card-body textarea').forEach(ta => autoResizeTextarea(ta));
+      }, 0);
+    }
+
+    function renderViewTable(card) {
+      let html = `<div class="table-wrapper"><table class="zaurus-table">`;
+      if (card.colWidths) {
+        html += `<colgroup>`;
+        for (let c = 0; c < card.cols; c++) {
+          const w = card.colWidths[c] || 100;
+          html += `<col style="width:${w}px;">`;
+        }
+        html += `</colgroup>`;
+      }
+      for (let r = 0; r < card.rows; r++) {
+        const h = (card.rowHeights && card.rowHeights[r]) ? card.rowHeights[r] : 'auto';
+        html += `<tr style="height:${typeof h === 'number' ? h+'px' : h};">`;
+        for (let c = 0; c < card.cols; c++) {
+          const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
+          const alignClass = getCellAlignmentClass(card, r, c, val);
+          html += `<td class="${alignClass}">${escapeHtml(val)}</td>`;
+        }
+        html += `</tr>`;
+      }
+      html += `</table></div>`;
+      return html;
+    }
+
+    function renderEditableTable(card) {
+      const zoom = card.zoom || 1.0;
+      let html = `
+        <div class="table-wrapper" id="table-wrapper-${card.id}">
+          <div class="table-zoom-container" id="table-zoom-${card.id}" style="transform: scale(${zoom});">
+            <table class="zaurus-table">
+      `;
+
+      if (card.colWidths) {
+        html += `<colgroup><col style="width:30px;">`;
+        for (let c = 0; c < card.cols; c++) {
+          const w = card.colWidths[c] || 100;
+          html += `<col style="width:${w}px;">`;
+        }
+        html += `</colgroup>`;
+      }
+
+      html += `<tr class="table-header-row"><th style="width:30px;"></th>`;
+      for (let c = 0; c < card.cols; c++) {
+        const colLabel = String.fromCharCode(65 + c);
+        html += `<th class="table-header-btn" 
+                     onclick="showJogMenu(event, '${card.id}', 'col', ${c})"
+                     onpointerdown="startHeaderHold(event, '${card.id}', 'col', ${c})">${colLabel}</th>`;
+      }
+      html += `</tr>`;
+
+      for (let r = 0; r < card.rows; r++) {
+        const h = (card.rowHeights && card.rowHeights[r]) ? card.rowHeights[r] : 'auto';
+        html += `<tr style="height:${typeof h === 'number' ? h+'px' : h};">`;
+        html += `<td class="table-header-btn table-header-col" 
+                     onclick="showJogMenu(event, '${card.id}', 'row', ${r})"
+                     onpointerdown="startHeaderHold(event, '${card.id}', 'row', ${r})">${r + 1}</td>`;
+
+        for (let c = 0; c < card.cols; c++) {
+          const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
+          const alignClass = getCellAlignmentClass(card, r, c, val);
+          html += `<td class="${alignClass}" style="padding:0;">
+                    <input type="text" value="${escapeHtml(val)}" 
+                           style="border:none; width:100%; height:100%; padding:4px; font-size:var(--ui-font-size); text-align:inherit; background:transparent;"
+                           oninput="updateTableCell('${card.id}', ${r}, ${c}, this.value)">
+                   </td>`;
+        }
+        html += `</tr>`;
+      }
+      html += `</table></div></div>`;
+      return html;
+    }
+
+    function getCellAlignmentClass(card, r, c, val) {
+      const colAlign = (card.colAligns && card.colAligns[c]) ? card.colAligns[c] : 'auto';
+      const rowAlign = (card.rowAligns && card.rowAligns[r]) ? card.rowAligns[r] : 'auto';
+
+      let align = 'align-left';
+      if (colAlign === 'auto') {
+        align = isRightAlignedValue(val) ? 'align-right' : 'align-left';
+      } else {
+        align = `align-${colAlign}`;
+      }
+
+      let valign = 'valign-middle';
+      if (rowAlign !== 'auto') {
+        valign = `valign-${rowAlign}`;
+      }
+
+      return `${align} ${valign}`;
+    }
+
+    function setupPinchZoom(cardId) {
+      const wrapper = document.getElementById(`table-wrapper-${cardId}`);
+      if (!wrapper) return;
+      let initialDist = 0;
+      let initialScale = 1.0;
+
+      wrapper.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          initialDist = Math.hypot(
+            e.touches[0].pageX - e.touches[1].pageX,
+            e.touches[0].pageY - e.touches[1].pageY
+          );
+          const card = getActiveReport().cards.find(c => c.id === cardId);
+          initialScale = card.zoom || 1.0;
+        }
+      }, { passive: true });
+
+      wrapper.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialDist > 0) {
+          const dist = Math.hypot(
+            e.touches[0].pageX - e.touches[1].pageX,
+            e.touches[0].pageY - e.touches[1].pageY
+          );
+          let newScale = initialScale * (dist / initialDist);
+          newScale = Math.min(Math.max(0.6, newScale), 2.5);
+          const card = getActiveReport().cards.find(c => c.id === cardId);
+          card.zoom = newScale;
+          const target = document.getElementById(`table-zoom-${cardId}`);
+          if (target) target.style.transform = `scale(${newScale})`;
+        }
+      }, { passive: true });
+    }
+
+    function showJogMenu(e, cardId, type, index) {
+      e.stopPropagation();
+      const popup = document.getElementById('jog-popup');
+
+      let options = [];
+      if (type === 'col') {
+        options = [
+          { label: '自動配置', val: 'auto' },
+          { label: '左寄せ', val: 'left' },
+          { label: '中央寄せ', val: 'center' },
+          { label: '右寄せ', val: 'right' }
+        ];
+      } else {
+        options = [
+          { label: '自動配置', val: 'auto' },
+          { label: '上寄せ', val: 'top' },
+          { label: '中央', val: 'middle' },
+          { label: '下寄せ', val: 'bottom' }
+        ];
+      }
+
+      popup.innerHTML = options.map(opt => `<div onclick="applyAlignment('${cardId}', '${type}', ${index}, '${opt.val}')">${opt.label}</div>`).join('');
+      popup.style.left = `${e.clientX}px`;
+      popup.style.top = `${e.clientY}px`;
+      popup.style.bottom = 'auto';
+      popup.style.display = 'block';
+    }
+
+    function applyAlignment(cardId, type, index, value) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (type === 'col') {
+        if (!card.colAligns) card.colAligns = [];
+        card.colAligns[index] = value;
+      } else {
+        if (!card.rowAligns) card.rowAligns = [];
+        card.rowAligns[index] = value;
+      }
+      document.getElementById('jog-popup').style.display = 'none';
+      pushHistory();
+      renderCards();
+    }
+
+    let holdTimer = null;
+    let isResizing = false;
+
+    function startHeaderHold(e, cardId, type, index) {
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+
+      holdTimer = setTimeout(() => {
+        isResizing = true;
+        const guideCol = document.getElementById('guide-line-col');
+        const guideRow = document.getElementById('guide-line-row');
+        const tooltip = document.getElementById('resize-tooltip');
+
+        if (type === 'col') guideCol.style.display = 'block';
+        else guideRow.style.display = 'block';
+        tooltip.style.display = 'block';
+
+        const onPointerMove = (moveEv) => {
+          if (!isResizing) return;
+          const deltaX = moveEv.clientX - startX;
+          const deltaY = moveEv.clientY - startY;
+
+          if (type === 'col') {
+            const currentW = (card.colWidths && card.colWidths[index]) ? card.colWidths[index] : 100;
+            const newW = Math.max(30, currentW + deltaX);
+            const mm = (newW * 0.264583).toFixed(1);
+            guideCol.style.left = `${moveEv.clientX}px`;
+            tooltip.style.left = `${moveEv.clientX - 20}px`;
+            tooltip.style.top = `${moveEv.clientY - 35}px`;
+            tooltip.innerText = `幅: ${mm}mm (${Math.round(newW)}px)`;
+          } else {
+            const currentH = (card.rowHeights && card.rowHeights[index]) ? card.rowHeights[index] : 30;
+            const newH = Math.max(20, currentH + deltaY);
+            const mm = (newH * 0.264583).toFixed(1);
+            guideRow.style.top = `${moveEv.clientY}px`;
+            tooltip.style.left = `${moveEv.clientX + 10}px`;
+            tooltip.style.top = `${moveEv.clientY - 25}px`;
+            tooltip.innerText = `高さ: ${mm}mm (${Math.round(newH)}px)`;
+          }
+        };
+
+        const onPointerUp = (upEv) => {
+          clearTimeout(holdTimer);
+          isResizing = false;
+          guideCol.style.display = 'none';
+          guideRow.style.display = 'none';
+          tooltip.style.display = 'none';
+
+          const deltaX = upEv.clientX - startX;
+          const deltaY = upEv.clientY - startY;
+
+          if (type === 'col') {
+            if (!card.colWidths) card.colWidths = Array(card.cols).fill(100);
+            card.colWidths[index] = Math.max(30, card.colWidths[index] + deltaX);
+          } else {
+            if (!card.rowHeights) card.rowHeights = Array(card.rows).fill(30);
+            card.rowHeights[index] = Math.max(20, card.rowHeights[index] + deltaY);
+          }
+
+          window.removeEventListener('pointermove', onPointerMove);
+          window.removeEventListener('pointerup', onPointerUp);
+          pushHistory();
+          renderCards();
+        };
+
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+      }, 400);
+
+      const cancelHold = () => clearTimeout(holdTimer);
+      e.target.addEventListener('pointerleave', cancelHold, { once: true });
+    }
+
+    function renderViewImage(card) {
+      const imgs = card.images || (card.src ? [card.src] : []);
+      if (imgs.length === 0) {
+        return `<div class="image-placeholder">(画像未選択)</div>`;
+      }
+
+      const gridClass = `image-grid count-${imgs.length}`;
+      let imgsHtml = `<div class="${gridClass}">`;
+      imgs.forEach(src => {
+        imgsHtml += `<img src="${src}">`;
+      });
+      imgsHtml += `</div>`;
+
+      if (imgs.length === 1 && card.comment) {
+        const isLeft = card.commentPos === 'left';
+        return `
+          <div class="image-container-box ${isLeft ? 'pos-left' : ''}">
+            ${imgsHtml}
+            <div style="font-size:calc(var(--ui-font-size) * 0.85); color:#334155; flex:1; text-align:center;">${escapeHtml(card.comment)}</div>
+          </div>
+        `;
+      }
+      return imgsHtml;
+    }
+
+    function handleImageUpload(id, input) {
+      if (!input.files || input.files.length === 0) return;
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (!card.images) card.images = card.src ? [card.src] : [];
+
+      const remainingSlots = 4 - card.images.length;
+      const filesToProcess = Array.from(input.files).slice(0, remainingSlots);
+
+      let processedCount = 0;
+      filesToProcess.forEach(file => {
+        compressImage(file, (compressedBase64) => {
+          card.images.push(compressedBase64);
+          processedCount++;
+          if (processedCount === filesToProcess.length) {
+            pushHistory();
+            renderCards();
+          }
+        });
+      });
+    }
+
+    function compressImage(file, callback) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let w = img.width;
+          let h = img.height;
+          const maxLen = 800;
+
+          if (w > maxLen || h > maxLen) {
+            if (w > h) {
+              h = Math.round((h * maxLen) / w);
+              w = maxLen;
+            } else {
+              w = Math.round((w * maxLen) / h);
+              h = maxLen;
+            }
+          }
+
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const compressedData = canvas.toDataURL('image/webp', 0.75);
+          callback(compressedData);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function updateImageComment(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) card.comment = val;
+    }
+
+    function updateImagePos(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) { card.commentPos = val; pushHistory(); }
+    }
+
+    function autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = (el.scrollHeight + 2) + 'px';
+    }
+
+    function addCard(type) {
+      const rep = getActiveReport();
+      const newCard = { id: 'c_' + Date.now(), type: type };
+      
+      if (type === 'title') { 
+        newCard.text = 'タイトル'; 
+        newCard.underline = false; 
+      }
+      else if (type === 'datetime') {
+        newCard.text = new Date().toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        newCard.assignee = '';
+        newCard.autoUpdate = true;
+      }
+      else if (type === 'text') { 
+        newCard.text = '新規テキスト'; 
+      }
+      else if (type === 'table') { 
+        newCard.rows = 2; newCard.cols = 2; newCard.zoom = 1.0;
+        newCard.data = [['',''],['','']]; 
+        newCard.colAligns = ['auto','auto']; newCard.rowAligns = ['auto','auto'];
+        newCard.colWidths = [100, 100]; newCard.rowHeights = [30, 30];
+      }
+      else if (type === 'image') { 
+        newCard.images = []; 
+        newCard.comment = ''; 
+        newCard.commentPos = 'right'; 
+      }
+
+      rep.cards.push(newCard);
+      activeCardId = newCard.id;
+      pushToFront(rep.id);
+      pushHistory();
+      renderCards();
+
+      setTimeout(() => {
+        const newCardEl = document.getElementById(`card-${newCard.id}`);
+        if (newCardEl) {
+          const inputEl = newCardEl.querySelector('input[type="text"], textarea');
+          if (inputEl) inputEl.focus();
+        }
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }, 50);
+    }
+
+    function deleteCard(cardId) {
+      const rep = getActiveReport();
+      rep.cards = rep.cards.filter(c => c.id !== cardId);
+      if (activeCardId === cardId) activeCardId = null;
+      pushHistory();
+      renderCards();
+    }
+
+    function moveCard(index, dir) {
+      const rep = getActiveReport();
+      const target = index + dir;
+      if (target < 0 || target >= rep.cards.length) return;
+      const temp = rep.cards[index];
+      rep.cards[index] = rep.cards[target];
+      rep.cards[target] = temp;
+      pushHistory();
+      renderCards();
+    }
+
+    function mergeCard(index) {
+      const rep = getActiveReport();
+      const prevCard = rep.cards[index - 1];
+      const currentCard = rep.cards[index];
+      prevCard.text += '\n' + currentCard.text;
+      rep.cards.splice(index, 1);
+      pushHistory();
+      renderCards();
+    }
+
+    function updateCardText(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) {
+        card.text = val;
+        renderReportList();
+      }
+    }
+
+    function updateCardDateText(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) {
+        card.text = val;
+        card.autoUpdate = false;
+        const chk = document.getElementById(`chk-auto-${id}`);
+        if (chk) chk.checked = false;
+        renderReportList();
+      }
+    }
+
+    function updateCardAssignee(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) card.assignee = val;
+    }
+
+    function toggleUnderline(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) { card.underline = val; pushHistory(); renderCards(); }
+    }
+
+    function toggleAutoUpdate(id, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (card) { card.autoUpdate = val; pushHistory(); }
+    }
+
+    function updateLiveDateTimes() {
+      const rep = getActiveReport();
+      if (!rep) return;
+      rep.cards.forEach(c => {
+        if (c.type === 'datetime' && c.autoUpdate) {
+          c.text = new Date().toLocaleString('ja-JP', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        }
+      });
+      const dtCard = rep.cards.find(c => c.type === 'datetime');
+      if (dtCard && dtCard.autoUpdate) {
+        const inputEl = document.querySelector(`.card[data-type="datetime"] input[placeholder*="日時"]`);
+        if (inputEl) inputEl.value = dtCard.text;
+        renderReportList();
+      }
+    }
+
+    function changeTableSize(id, rows, cols) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      card.rows = parseInt(rows);
+      card.cols = parseInt(cols);
+      const newData = [];
+      for (let r = 0; r < card.rows; r++) {
+        const row = [];
+        for (let c = 0; c < card.cols; c++) {
+          row.push((card.data[r] && card.data[r][c]) ? card.data[r][c] : '');
+        }
+        newData.push(row);
+      }
+      card.data = newData;
+      pushHistory();
+      renderCards();
+    }
+
+    function updateTableCell(id, r, c, val) {
+      const card = getActiveReport().cards.find(c => c.id === id);
+      if (!card.data[r]) card.data[r] = [];
+      card.data[r][c] = val;
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settings-modal').classList.add('active');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.remove('active');
+    }
+
+    function updatePrintFont(fontType) {
+      currentPrintFont = fontType;
+      if (fontType === 'mincho') {
+        document.documentElement.style.setProperty('--print-font-family', '"Yu Mincho", "MS Mincho", "Hiragino Mincho ProN", serif');
+      } else {
+        document.documentElement.style.setProperty('--print-font-family', '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif');
+      }
+    }
+
+    /* 表示ポイントサイズ変更処理 */
+    function changePointSize(delta) {
+      let newSize = currentPointSize + delta;
+      if (newSize < 7.0) newSize = 7.0;
+      if (newSize > 20.0) newSize = 20.0;
+      currentPointSize = Math.round(newSize * 10) / 10;
+      document.getElementById('btn-point-size-display').innerText = currentPointSize.toFixed(1);
+      document.documentElement.style.setProperty('--ui-font-size', `${currentPointSize}pt`);
+      renderCards();
+    }
+
+    /* A4印刷処理 */
+    function triggerDirectPrint() {
+      const rep = getActiveReport();
+      const target = document.getElementById('a4-target');
+      target.innerHTML = '';
+      let totalLines = 0;
+
+      rep.cards.forEach(card => {
+        if (card.type === 'title') {
+          const div = document.createElement('div');
+          div.className = `out-title ${card.underline ? 'underline' : ''}`;
+          div.innerText = card.text;
+          target.appendChild(div);
+          totalLines += Math.max(1, Math.ceil(card.text.length / 44)) * 1.5;
+        } else if (card.type === 'datetime') {
+          const div = document.createElement('div');
+          div.className = 'out-datetime';
+          let dtStr = card.text || '';
+          if (card.assignee) dtStr += (dtStr ? ' ' : '') + card.assignee;
+          div.innerText = dtStr;
+          target.appendChild(div);
+          totalLines += 1;
+        } else if (card.type === 'text') {
+          const div = document.createElement('div');
+          div.className = 'out-text';
+          div.innerText = card.text;
+          target.appendChild(div);
+          card.text.split('\n').forEach(line => {
+            totalLines += Math.max(1, Math.ceil(line.length / 44));
+          });
+        } else if (card.type === 'table') {
+          const table = document.createElement('table');
+          table.className = 'out-table';
+          if (card.colWidths) {
+            const colgroup = document.createElement('colgroup');
+            for (let c = 0; c < card.cols; c++) {
+              colgroup.innerHTML += `<col style="width:${card.colWidths[c] || 100}px;">`;
+            }
+            table.appendChild(colgroup);
+          }
+          for (let r = 0; r < card.rows; r++) {
+            const tr = document.createElement('tr');
+            for (let c = 0; c < card.cols; c++) {
+              const td = document.createElement('td');
+              const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
+              td.className = getCellAlignmentClass(card, r, c, val);
+              td.innerText = val;
+              tr.appendChild(td);
+            }
+            table.appendChild(tr);
+          }
+          target.appendChild(table);
+          totalLines += card.rows * 1.5;
+        } else if (card.type === 'image') {
+          const imgs = card.images || (card.src ? [card.src] : []);
+          const box = document.createElement('div');
+          box.className = 'out-image-box';
+          
+          let imgsHtml = `<div class="image-grid" style="display:flex; flex-direction:column; gap:4px;">`;
+          imgs.forEach(src => { imgsHtml += `<img src="${src}" style="max-width:100%; height:auto;">`; });
+          imgsHtml += `</div>`;
+
+          if (imgs.length === 1 && card.comment) {
+            const commentHtml = `<div class="img-comment">${escapeHtml(card.comment)}</div>`;
+            box.innerHTML = (card.commentPos === 'left') ? (commentHtml + imgsHtml) : (imgsHtml + commentHtml);
+          } else {
+            box.innerHTML = imgsHtml;
+          }
+          target.appendChild(box);
+          totalLines += imgs.length * 6;
+        }
+      });
+
+      if (totalLines <= 30) target.className = 'a4-paper mode-30';
+      else if (totalLines <= 40) target.className = 'a4-paper mode-40';
+      else target.className = 'a4-paper mode-50';
+
+      window.print();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
