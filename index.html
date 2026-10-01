@@ -93,12 +93,12 @@
     .image-grid.count-1 { grid-template-columns: minmax(120px, 260px); }
     .image-grid.count-2, .image-grid.count-3, .image-grid.count-4 { grid-template-columns: repeat(2, 1fr); max-width: 100%; }
     .image-grid img { width: 100%; height: auto; object-fit: cover; border-radius: 4px; max-height: 200px; display: block; margin: 0 auto; }
-    .image-container-box { display: flex; gap: 8px; align-items: center; justify-content: center; }
-    .image-container-box.pos-left { flex-direction: row-reverse; }
 
     /* --- 表固有スタイル --- */
-    .table-wrapper { width: 100%; overflow-x: auto; touch-action: pan-x pan-y; position: relative; }
-    .table-zoom-container { transform-origin: top left; transition: transform 0.05s ease-out; width: 100%; }
+    .table-wrapper { width: 100%; position: relative; }
+    .table-wrapper.edit-mode { overflow-x: auto; touch-action: pan-x pan-y; }
+    .table-wrapper.view-mode { overflow-x: hidden; }
+    
     .zaurus-table { width: 100%; border-collapse: collapse; margin-top: 2px; table-layout: fixed; background: #fff; }
     .zaurus-table th, .zaurus-table td { border: 1px solid #334155; padding: 4px 6px; font-size: calc(var(--ui-font-size) * 0.9); line-height: 1.3; word-break: break-all; position: relative; }
     
@@ -114,7 +114,7 @@
     .valign-bottom { vertical-align: bottom; }
 
     /* ポップアップ */
-    .jog-popup { display: none; position: fixed; background: #1e293b; color: #fff; border-radius: 8px; padding: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); z-index: 300; font-size: var(--ui-font-size); max-height: 220px; overflow-y: auto; width: 220px; }
+    .jog-popup { display: none; position: fixed; background: #1e293b; color: #fff; border-radius: 8px; padding: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); z-index: 300; font-size: var(--ui-font-size); max-height: 250px; overflow-y: auto; width: 220px; }
     .jog-popup div { padding: 8px 12px; cursor: pointer; border-radius: 4px; text-align: left; border-bottom: 1px solid #334155; }
     .jog-popup div:last-child { border-bottom: none; }
     .jog-popup div:hover, .jog-popup div:active { background: #3b82f6; color: #fff; }
@@ -147,15 +147,13 @@
 
     #a4-print-container { display: none; }
 
-    /* --- 印刷用CSS仕様 --- */
+    /* --- 印刷用CSS仕様（余白 10mm に調整） --- */
     @media print {
-      /* OS自動追加のヘッダー・フッター（URL・日時）を非表示にするため余白0指定 */
       @page {
         size: A4 portrait;
         margin: 0;
       }
 
-      /* 画面表示用スタイルの打ち消し */
       html, body {
         width: 210mm !important;
         height: 297mm !important;
@@ -168,19 +166,13 @@
       .no-print, .container, .app-header, .modal-overlay, .jog-popup, .resize-guide-line, .resize-tooltip { display: none !important; }
       #a4-print-container { display: block !important; }
       
-      /* 印刷コンテンツ領域の設定 */
       .print-content {
         box-sizing: border-box;
         width: 210mm !important;
         height: 297mm !important;
-        padding: 20mm !important; /* 物理余白20mmの担保 */
-
-        /* 横幅170mmに対して全角44文字で固定 (約10.95pt) */
-        font-size: calc(170mm / 44) !important;
-
-        /* 選択された行数から1行あたりの高さを自動算定 */
-        line-height: calc(257mm / var(--lines-per-page)) !important;
-
+        padding: 10mm !important;
+        font-size: calc(190mm / 44) !important;
+        line-height: calc(277mm / var(--lines-per-page)) !important;
         text-align: justify;
         text-justify: inter-ideograph;
         word-break: break-all;
@@ -191,13 +183,11 @@
         page-break-after: always;
       }
 
-      /* 図・表・カード・ブロック要素の改ページ繰り上げ制御 */
       img, figure, table, .card, .block-element, .out-table, .out-image-box {
         break-inside: avoid !important;
         page-break-inside: avoid !important;
       }
 
-      /* 見出し直後での単体改ページ防止 */
       h1, h2, h3, h4, .out-title {
         break-after: avoid !important;
         page-break-after: avoid !important;
@@ -215,7 +205,6 @@
       .out-image-box { display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: center; margin: 2px 0; width: 100%; }
       .out-image-box .image-grid { display: flex; flex-direction: column; width: 100%; gap: 4px; align-items: center; }
       .out-image-box img { max-width: 100%; max-height: 180px; object-fit: contain; }
-      .out-image-box .img-comment { font-size: 0.9em; flex: 1; text-align: center; }
     }
   </style>
 </head>
@@ -242,7 +231,7 @@
       <div style="display: flex; gap: 6px; align-items: center;">
         <button class="btn" id="btn-undo-editor" onclick="undo()" disabled>↩</button>
         <button class="btn" id="btn-redo-editor" onclick="redo()" disabled>↪</button>
-        <!-- 仕様に基づき、直接印刷ではなくモーダルを開く -->
+        <button class="btn btn-primary" onclick="generateAndCopyRepo(currentReportId)">Repo</button>
         <button class="btn btn-success" onclick="openPrintModal()">印刷</button>
         <button class="btn btn-primary" onclick="openSettingsModal()">設定</button>
       </div>
@@ -336,7 +325,6 @@
       <div class="settings-section">
         <span class="settings-label">1ページあたりの行数指定</span>
         <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
-          <!-- 選択範囲: 30行 〜 50行（初期値: 40行） -->
           <input type="range" id="print-lines-slider" min="30" max="50" value="40" oninput="document.getElementById('print-lines-value').innerText = this.value" style="flex:1;">
           <span id="print-lines-value" class="point-size-val">40</span>行
         </div>
@@ -370,6 +358,10 @@
   </div>
 
   <script>
+    const MAX_TABLE_WIDTH_MM = 170;
+    const MM_TO_PX = 3.779527559; // 1mm = 3.779527559px (96dpi)
+    const MAX_TABLE_WIDTH_PX = MAX_TABLE_WIDTH_MM * MM_TO_PX; // ~642.5px
+
     let reports = [
       {
         id: 1,
@@ -397,10 +389,14 @@
           { id: 'c2', type: 'datetime', autoUpdate: false, text: '2026/09/28 11:00', assignee: '山田 太郎' },
           { id: 'c3', type: 'text', text: '【本時の目標】\n1. 図形の特徴を理解し、正しく分類することができる。' },
           { 
-            id: 'c4', type: 'table', rows: 2, cols: 2, zoom: 1.0,
+            id: 'c4', type: 'table', rows: 2, cols: 2,
             colAligns: ['auto', 'auto'], rowAligns: ['auto', 'auto'],
-            colWidths: [120, 120], rowHeights: [30, 30],
-            data: [['展開段階', '時間'], ['導入・課題把握', '10分']] 
+            colWidths: [85, 85], rowHeights: [30, 30],
+            data: [['展開段階', '時間'], ['導入・課題把握', '10分']],
+            spans: [
+              [{rs:1,cs:1,h:false,mr:0,mc:0}, {rs:1,cs:1,h:false,mr:0,mc:1}],
+              [{rs:1,cs:1,h:false,mr:1,mc:0}, {rs:1,cs:1,h:false,mr:1,mc:1}]
+            ]
           }
         ]
       }
@@ -416,6 +412,27 @@
     let historyStack = [];
     let historyIndex = -1;
     const MAX_HISTORY = 50;
+
+    function ensureSpans(card) {
+      if (!card.spans) card.spans = [];
+      for (let r = 0; r < card.rows; r++) {
+        if (!card.spans[r]) card.spans[r] = [];
+        for (let c = 0; c < card.cols; c++) {
+          if (!card.spans[r][c]) {
+            card.spans[r][c] = { rs: 1, cs: 1, h: false, mr: r, mc: c };
+          }
+        }
+      }
+    }
+
+    function checkAndLimitTableWidth(card) {
+      if (!card.colWidths) return;
+      let totalPx = card.colWidths.reduce((a, b) => a + b, 0);
+      if (totalPx > MAX_TABLE_WIDTH_PX) {
+        const scale = MAX_TABLE_WIDTH_PX / totalPx;
+        card.colWidths = card.colWidths.map(w => Math.max(20, Math.floor(w * scale)));
+      }
+    }
 
     function pushHistory() {
       const state = JSON.stringify(reports);
@@ -530,7 +547,6 @@
         report.cards.forEach(c => {
           if (c.text) texts.push(c.text);
           if (c.assignee) texts.push(c.assignee);
-          if (c.comment) texts.push(c.comment);
           if (c.data && Array.isArray(c.data)) {
             c.data.forEach(r => r.forEach(cell => texts.push(cell)));
           }
@@ -595,7 +611,6 @@
       renderChips();
     }
 
-    /* 一覧タイトルの長押し（ポップアップメニュー表示）処理 */
     let targetReportIdForAction = null;
     let reportHoldTimer = null;
     let isReportHold = false;
@@ -697,7 +712,6 @@
       });
     }
 
-    /* タグメニュー（50音順・左寄せ・長押し「改名/削除」） */
     function toggleTagMenu(e) {
       e.stopPropagation();
       const menu = document.getElementById('tag-dropdown-menu');
@@ -806,7 +820,6 @@
       document.getElementById('tag-dropdown-menu').style.display = 'none';
     }
 
-    /* タグピッカー */
     function openTagPicker(e) {
       e.stopPropagation();
       const popup = document.getElementById('jog-popup');
@@ -898,17 +911,25 @@
       switchView('editor');
     }
 
-    async function generateAndCopyRepo() {
-      const filtered = reports.filter(matchesFilters);
-      if (filtered.length === 0) {
+    async function generateAndCopyRepo(targetId = null) {
+      let targetReports = [];
+      if (targetId) {
+        const rep = reports.find(r => r.id === targetId);
+        if (rep) targetReports = [rep];
+      } else {
+        targetReports = reports.filter(matchesFilters);
+      }
+
+      if (targetReports.length === 0) {
         alert('出力対象のレポートがありません。');
         return;
       }
+
       const borderText = '--------------------------------------------------------------------';
       let htmlContent = `<div style="font-family: sans-serif; line-height: 1.5;">`;
       let plainContent = '';
 
-      filtered.forEach((rep, index) => {
+      targetReports.forEach((rep, index) => {
         if (index > 0) {
           htmlContent += `<div style="margin: 16px 0; color: #64748b; font-family: monospace;">${borderText}</div>`;
           plainContent += `\n${borderText}\n\n`;
@@ -928,12 +949,17 @@
             htmlContent += `<p style="margin: 0; white-space: pre-wrap; text-align: left;">${escapeHtml(card.text)}</p>`;
             plainContent += `${card.text}\n`;
           } else if (card.type === 'table') {
+            ensureSpans(card);
             htmlContent += `<table border="1" style="border-collapse: collapse; width: 100%; margin: 2px 0;">`;
             for (let r = 0; r < card.rows; r++) {
               htmlContent += `<tr>`;
               for (let c = 0; c < card.cols; c++) {
+                const span = card.spans[r][c];
+                if (span.h) continue;
                 const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
-                htmlContent += `<td style="padding: 4px; border: 1px solid #cbd5e1;">${escapeHtml(val)}</td>`;
+                const rsAttr = span.rs > 1 ? ` rowspan="${span.rs}"` : '';
+                const csAttr = span.cs > 1 ? ` colspan="${span.cs}"` : '';
+                htmlContent += `<td${rsAttr}${csAttr} style="padding: 4px; border: 1px solid #cbd5e1;">${escapeHtml(val)}</td>`;
                 plainContent += `[${val}] `;
               }
               htmlContent += `</tr>`;
@@ -945,9 +971,6 @@
             imgs.forEach(src => {
               htmlContent += `<div style="margin: 2px 0; text-align: center;"><img src="${src}" style="max-width: 100%; height: auto;"></div>`;
             });
-            if (imgs.length === 1 && card.comment) {
-              htmlContent += `<p style="font-size:0.85em; text-align: center;">${escapeHtml(card.comment)}</p>`;
-            }
             plainContent += `[画像 ${imgs.length}枚]\n`;
           }
         });
@@ -960,10 +983,10 @@
         const blobText = new Blob([plainContent], { type: 'text/plain' });
         const data = [new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText })];
         await navigator.clipboard.write(data);
-        alert(`${filtered.length} 件のレポートをリッチテキスト形式でクリップボードにコピーしました！`);
+        alert(targetId ? '編集中のレポートをリッチテキスト形式でクリップボードにコピーしました！' : `${targetReports.length} 件のレポートをリッチテキスト形式でクリップボードにコピーしました！`);
       } catch (err) {
         navigator.clipboard.writeText(plainContent).then(() => {
-          alert(`${filtered.length} 件のレポートをテキスト形式でクリップボードにコピーしました。`);
+          alert(targetId ? '編集中のレポートをテキスト形式でクリップボードにコピーしました。' : `${targetReports.length} 件のレポートをテキスト形式でクリップボードにコピーしました。`);
         });
       }
     }
@@ -1106,39 +1129,42 @@
           } else if (card.type === 'text') {
             bodyHtml = `<textarea oninput="updateCardText('${card.id}', this.value); autoResizeTextarea(this);">${escapeHtml(card.text)}</textarea>`;
           } else if (card.type === 'table') {
+            let rowOpts = '';
+            for (let i = 1; i <= 26; i++) {
+              rowOpts += `<option value="${i}" ${i === card.rows ? 'selected' : ''}>${i}</option>`;
+            }
+            let colOpts = '';
+            for (let i = 1; i <= 26; i++) {
+              colOpts += `<option value="${i}" ${i === card.cols ? 'selected' : ''}>${i}</option>`;
+            }
+
             bodyHtml = `
-              <div style="display:flex; gap:8px; margin-bottom:6px; align-items:center;">
+              <div style="display:flex; gap:6px; margin-bottom:6px; align-items:center; flex-wrap:wrap;">
                 <label style="font-size:calc(var(--ui-font-size) * 0.8);">行:</label>
                 <select onchange="changeTableSize('${card.id}', this.value, ${card.cols})" style="padding:2px 4px;">
-                  ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${n===card.rows?'selected':''}>${n}</option>`).join('')}
+                  ${rowOpts}
                 </select>
                 <label style="font-size:calc(var(--ui-font-size) * 0.8);">列:</label>
                 <select onchange="changeTableSize('${card.id}', ${card.rows}, this.value)" style="padding:2px 4px;">
-                  ${[1,2,3,4,5,6].map(n => `<option value="${n}" ${n===card.cols?'selected':''}>${n}</option>`).join('')}
+                  ${colOpts}
                 </select>
-                <span style="font-size:calc(var(--ui-font-size) * 0.7); color:#64748b;">(2本指ズーム/ピンチ対応)</span>
+                <div style="display:inline-flex; align-items:center; margin-left: auto; gap: 4px;">
+                  <label style="font-size:calc(var(--ui-font-size) * 0.85); cursor:pointer; display:inline-flex; align-items:center; gap:2px;">
+                    <input type="checkbox" ${card.isMergeMode ? 'checked' : ''} onchange="toggleMergeMode('${card.id}', this.checked)"> 結合
+                  </label>
+                  <button class="btn btn-sm btn-light" onclick="unmergeSelectedCell('${card.id}')">解除</button>
+                </div>
               </div>
               ${renderEditableTable(card)}
             `;
           } else if (card.type === 'image') {
             const imgs = card.images || (card.src ? [card.src] : []);
-            const isCommentDisabled = imgs.length >= 2;
             bodyHtml = `
               <div style="margin-bottom:6px; text-align: center;">
                 <input type="file" accept="image/*" multiple onchange="handleImageUpload('${card.id}', this)" ${imgs.length >= 4 ? 'disabled' : ''}>
                 <span style="font-size:calc(var(--ui-font-size) * 0.7); color:#64748b; display:block;">(最大4枚/横2列まで表示/自動圧縮)</span>
               </div>
               ${renderViewImage(card)}
-              <div style="margin-top:8px; display:flex; gap:8px; ${isCommentDisabled ? 'opacity:0.4;' : ''}">
-                <input type="text" placeholder="${isCommentDisabled ? '画像2枚以上のためコメント不可' : 'コメント記入'}" 
-                       value="${escapeHtml(card.comment || '')}" 
-                       oninput="updateImageComment('${card.id}', this.value)" 
-                       ${isCommentDisabled ? 'disabled' : ''}>
-                <select onchange="updateImagePos('${card.id}', this.value)" ${isCommentDisabled ? 'disabled' : ''}>
-                  <option value="right" ${card.commentPos==='right'?'selected':''}>右</option>
-                  <option value="left" ${card.commentPos==='left'?'selected':''}>左</option>
-                </select>
-              </div>
             `;
           }
         }
@@ -1158,10 +1184,6 @@
           <div class="card-body">${bodyHtml}</div>
         `;
         container.appendChild(cardEl);
-
-        if (isActive && card.type === 'table') {
-          setupPinchZoom(card.id);
-        }
       });
 
       setTimeout(() => {
@@ -1169,23 +1191,36 @@
       }, 0);
     }
 
+    /* ビューモード用テーブル描画 */
     function renderViewTable(card) {
-      let html = `<div class="table-wrapper"><table class="zaurus-table">`;
-      if (card.colWidths) {
-        html += `<colgroup>`;
-        for (let c = 0; c < card.cols; c++) {
-          const w = card.colWidths[c] || 100;
-          html += `<col style="width:${w}px;">`;
-        }
-        html += `</colgroup>`;
+      ensureSpans(card);
+      let html = `<div class="table-wrapper view-mode"><table class="zaurus-table">`;
+      
+      const totalW = (card.colWidths && card.colWidths.length === card.cols) 
+        ? card.colWidths.reduce((a, b) => a + b, 0) 
+        : card.cols * 85;
+
+      html += `<colgroup>`;
+      for (let c = 0; c < card.cols; c++) {
+        const w = (card.colWidths && card.colWidths[c]) ? card.colWidths[c] : 85;
+        const pct = ((w / totalW) * 100).toFixed(2);
+        html += `<col style="width:${pct}%;">`;
       }
+      html += `</colgroup>`;
+
       for (let r = 0; r < card.rows; r++) {
         const h = (card.rowHeights && card.rowHeights[r]) ? card.rowHeights[r] : 'auto';
         html += `<tr style="height:${typeof h === 'number' ? h+'px' : h};">`;
         for (let c = 0; c < card.cols; c++) {
+          const span = card.spans[r][c];
+          if (span.h) continue;
+
           const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
           const alignClass = getCellAlignmentClass(card, r, c, val);
-          html += `<td class="${alignClass}">${escapeHtml(val)}</td>`;
+          const rsAttr = span.rs > 1 ? ` rowspan="${span.rs}"` : '';
+          const csAttr = span.cs > 1 ? ` colspan="${span.cs}"` : '';
+
+          html += `<td class="${alignClass}"${rsAttr}${csAttr}>${escapeHtml(val)}</td>`;
         }
         html += `</tr>`;
       }
@@ -1193,22 +1228,20 @@
       return html;
     }
 
+    /* 編集モード用テーブル描画 */
     function renderEditableTable(card) {
-      const zoom = card.zoom || 1.0;
+      ensureSpans(card);
       let html = `
-        <div class="table-wrapper" id="table-wrapper-${card.id}">
-          <div class="table-zoom-container" id="table-zoom-${card.id}" style="transform: scale(${zoom});">
-            <table class="zaurus-table">
+        <div class="table-wrapper edit-mode" id="table-wrapper-${card.id}">
+          <table class="zaurus-table">
       `;
 
-      if (card.colWidths) {
-        html += `<colgroup><col style="width:30px;">`;
-        for (let c = 0; c < card.cols; c++) {
-          const w = card.colWidths[c] || 100;
-          html += `<col style="width:${w}px;">`;
-        }
-        html += `</colgroup>`;
+      html += `<colgroup><col style="width:30px;">`;
+      for (let c = 0; c < card.cols; c++) {
+        const w = (card.colWidths && card.colWidths[c]) ? card.colWidths[c] : 85;
+        html += `<col style="width:${w}px;">`;
       }
+      html += `</colgroup>`;
 
       html += `<tr class="table-header-row"><th style="width:30px;"></th>`;
       for (let c = 0; c < card.cols; c++) {
@@ -1227,17 +1260,34 @@
                      onpointerdown="startHeaderHold(event, '${card.id}', 'row', ${r})">${r + 1}</td>`;
 
         for (let c = 0; c < card.cols; c++) {
+          const span = card.spans[r][c];
+          if (span.h) continue;
+
           const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
           const alignClass = getCellAlignmentClass(card, r, c, val);
-          html += `<td class="${alignClass}" style="padding:0;">
-                    <input type="text" value="${escapeHtml(val)}" 
-                           style="border:none; width:100%; height:100%; padding:4px; font-size:var(--ui-font-size); text-align:inherit; background:transparent;"
-                           oninput="updateTableCell('${card.id}', ${r}, ${c}, this.value)">
-                   </td>`;
+          const rsAttr = span.rs > 1 ? ` rowspan="${span.rs}"` : '';
+          const csAttr = span.cs > 1 ? ` colspan="${span.cs}"` : '';
+
+          const isSelected = card.selectedCell && (card.selectedCell.r === r && card.selectedCell.c === c);
+          const selStyle = isSelected ? 'outline: 2px solid #2563eb; background-color: #dbeafe;' : '';
+
+          if (card.isMergeMode) {
+            html += `<td class="${alignClass}"${rsAttr}${csAttr} style="padding:4px; cursor:pointer; ${selStyle}"
+                         onclick="handleCellClickForMerge('${card.id}', ${r}, ${c})">
+                      ${escapeHtml(val) || '&nbsp;'}
+                     </td>`;
+          } else {
+            html += `<td class="${alignClass}"${rsAttr}${csAttr} style="padding:0; ${selStyle}"
+                         onclick="selectCellForUnmerge('${card.id}', ${r}, ${c})">
+                      <input type="text" value="${escapeHtml(val)}" 
+                             style="border:none; width:100%; height:100%; padding:4px; font-size:var(--ui-font-size); text-align:inherit; background:transparent;"
+                             oninput="updateTableCell('${card.id}', ${r}, ${c}, this.value)">
+                     </td>`;
+          }
         }
         html += `</tr>`;
       }
-      html += `</table></div></div>`;
+      html += `</table></div>`;
       return html;
     }
 
@@ -1260,39 +1310,6 @@
       return `${align} ${valign}`;
     }
 
-    function setupPinchZoom(cardId) {
-      const wrapper = document.getElementById(`table-wrapper-${cardId}`);
-      if (!wrapper) return;
-      let initialDist = 0;
-      let initialScale = 1.0;
-
-      wrapper.addEventListener('touchstart', (e) => {
-        if (e.touches.length === 2) {
-          initialDist = Math.hypot(
-            e.touches[0].pageX - e.touches[1].pageX,
-            e.touches[0].pageY - e.touches[1].pageY
-          );
-          const card = getActiveReport().cards.find(c => c.id === cardId);
-          initialScale = card.zoom || 1.0;
-        }
-      }, { passive: true });
-
-      wrapper.addEventListener('touchmove', (e) => {
-        if (e.touches.length === 2 && initialDist > 0) {
-          const dist = Math.hypot(
-            e.touches[0].pageX - e.touches[1].pageX,
-            e.touches[0].pageY - e.touches[1].pageY
-          );
-          let newScale = initialScale * (dist / initialDist);
-          newScale = Math.min(Math.max(0.6, newScale), 2.5);
-          const card = getActiveReport().cards.find(c => c.id === cardId);
-          card.zoom = newScale;
-          const target = document.getElementById(`table-zoom-${cardId}`);
-          if (target) target.style.transform = `scale(${newScale})`;
-        }
-      }, { passive: true });
-    }
-
     function showJogMenu(e, cardId, type, index) {
       e.stopPropagation();
       const popup = document.getElementById('jog-popup');
@@ -1300,21 +1317,38 @@
       let options = [];
       if (type === 'col') {
         options = [
-          { label: '自動配置', val: 'auto' },
-          { label: '左寄せ', val: 'left' },
-          { label: '中央寄せ', val: 'center' },
-          { label: '右寄せ', val: 'right' }
+          { label: '自動配置', action: 'auto' },
+          { label: '左寄せ', action: 'left' },
+          { label: '中央寄せ', action: 'center' },
+          { label: '右寄せ', action: 'right' },
+          { label: '左に列を挿入', action: 'insertCol' },
+          { label: '列を削除', action: 'deleteCol' }
         ];
       } else {
         options = [
-          { label: '自動配置', val: 'auto' },
-          { label: '上寄せ', val: 'top' },
-          { label: '中央', val: 'middle' },
-          { label: '下寄せ', val: 'bottom' }
+          { label: '自動配置', action: 'auto' },
+          { label: '上寄せ', action: 'top' },
+          { label: '中央', action: 'middle' },
+          { label: '下寄せ', action: 'bottom' },
+          { label: '上に行を挿入', action: 'insertRow' },
+          { label: '行を削除', action: 'deleteRow' }
         ];
       }
 
-      popup.innerHTML = options.map(opt => `<div onclick="applyAlignment('${cardId}', '${type}', ${index}, '${opt.val}')">${opt.label}</div>`).join('');
+      popup.innerHTML = options.map(opt => {
+        if (opt.action === 'insertCol') {
+          return `<div onclick="insertColumn('${cardId}', ${index})">${opt.label}</div>`;
+        } else if (opt.action === 'deleteCol') {
+          return `<div onclick="deleteColumn('${cardId}', ${index})">${opt.label}</div>`;
+        } else if (opt.action === 'insertRow') {
+          return `<div onclick="insertRow('${cardId}', ${index})">${opt.label}</div>`;
+        } else if (opt.action === 'deleteRow') {
+          return `<div onclick="deleteRow('${cardId}', ${index})">${opt.label}</div>`;
+        } else {
+          return `<div onclick="applyAlignment('${cardId}', '${type}', ${index}, '${opt.action}')">${opt.label}</div>`;
+        }
+      }).join('');
+
       popup.style.left = `${e.clientX}px`;
       popup.style.top = `${e.clientY}px`;
       popup.style.bottom = 'auto';
@@ -1331,6 +1365,283 @@
         card.rowAligns[index] = value;
       }
       document.getElementById('jog-popup').style.display = 'none';
+      pushHistory();
+      renderCards();
+    }
+
+    /* 列の挿入 */
+    function insertColumn(cardId, colIndex) {
+      document.getElementById('jog-popup').style.display = 'none';
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      if (card.cols >= 26) {
+        alert("これ以上列を追加できません(最大26列)。");
+        return;
+      }
+
+      ensureSpans(card);
+
+      const midMergeSet = new Set();
+      for (let r = 0; r < card.rows; r++) {
+        for (let c = 0; c < card.cols; c++) {
+          const span = card.spans[r][c];
+          if (!span.h && span.cs > 1) {
+            if (colIndex > span.mc && colIndex <= span.mc + span.cs - 1) {
+              midMergeSet.add(`${span.mr},${span.mc}`);
+            }
+          }
+        }
+      }
+
+      midMergeSet.forEach(key => {
+        const [mr, mc] = key.split(',').map(Number);
+        card.spans[mr][mc].cs += 1;
+      });
+
+      for (let r = 0; r < card.rows; r++) {
+        card.data[r].splice(colIndex, 0, '');
+
+        let isInsideMerge = false;
+        let masterR = r, masterC = colIndex;
+
+        if (colIndex > 0 && colIndex < card.cols) {
+          const leftSpan = card.spans[r][colIndex - 1];
+          const rightSpan = card.spans[r][colIndex];
+          if (leftSpan.mr === rightSpan.mr && leftSpan.mc === rightSpan.mc) {
+            isInsideMerge = true;
+            masterR = leftSpan.mr;
+            masterC = leftSpan.mc;
+          }
+        }
+
+        const newSpan = isInsideMerge
+          ? { rs: 1, cs: 1, h: true, mr: masterR, mc: masterC }
+          : { rs: 1, cs: 1, h: false, mr: r, mc: colIndex };
+
+        card.spans[r].splice(colIndex, 0, newSpan);
+      }
+
+      for (let r = 0; r < card.rows; r++) {
+        for (let c = colIndex + 1; c <= card.cols; c++) {
+          const span = card.spans[r][c];
+          if (span.mc >= colIndex) {
+            span.mc += 1;
+          }
+        }
+      }
+
+      card.cols += 1;
+      if (!card.colWidths) card.colWidths = Array(card.cols - 1).fill(85);
+      card.colWidths.splice(colIndex, 0, 85);
+
+      if (!card.colAligns) card.colAligns = Array(card.cols - 1).fill('auto');
+      card.colAligns.splice(colIndex, 0, 'auto');
+
+      checkAndLimitTableWidth(card);
+      pushHistory();
+      renderCards();
+    }
+
+    /* 列の削除 */
+    function deleteColumn(cardId, colIndex) {
+      document.getElementById('jog-popup').style.display = 'none';
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      if (card.cols <= 1) {
+        alert("これ以上列を削除できません。");
+        return;
+      }
+
+      ensureSpans(card);
+
+      for (let r = 0; r < card.rows; r++) {
+        const span = card.spans[r][colIndex];
+        if (!span.h) {
+          if (span.cs > 1) {
+            const nextSpan = card.spans[r][colIndex + 1];
+            nextSpan.h = false;
+            nextSpan.rs = span.rs;
+            nextSpan.cs = span.cs - 1;
+            nextSpan.mr = r;
+            nextSpan.mc = colIndex + 1;
+            if (card.data[r][colIndex + 1] === '') {
+              card.data[r][colIndex + 1] = card.data[r][colIndex];
+            }
+            for (let br = r; br < r + span.rs; br++) {
+              for (let bc = colIndex + 1; bc < colIndex + span.cs; bc++) {
+                card.spans[br][bc].mr = r;
+                card.spans[br][bc].mc = colIndex + 1;
+              }
+            }
+          }
+        } else {
+          const mr = span.mr;
+          const mc = span.mc;
+          const master = card.spans[mr][mc];
+          if (master && master.cs > 1) {
+            master.cs -= 1;
+          }
+        }
+      }
+
+      for (let r = 0; r < card.rows; r++) {
+        card.data[r].splice(colIndex, 1);
+        card.spans[r].splice(colIndex, 1);
+      }
+
+      card.cols -= 1;
+
+      for (let r = 0; r < card.rows; r++) {
+        for (let c = 0; c < card.cols; c++) {
+          const s = card.spans[r][c];
+          if (s.mc > colIndex) {
+            s.mc -= 1;
+          }
+        }
+      }
+
+      if (card.colWidths) card.colWidths.splice(colIndex, 1);
+      if (card.colAligns) card.colAligns.splice(colIndex, 1);
+
+      checkAndLimitTableWidth(card);
+      pushHistory();
+      renderCards();
+    }
+
+    /* 行の挿入 */
+    function insertRow(cardId, rowIndex) {
+      document.getElementById('jog-popup').style.display = 'none';
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      if (card.rows >= 26) {
+        alert("これ以上行を追加できません(最大26行)。");
+        return;
+      }
+
+      ensureSpans(card);
+
+      const midMergeSet = new Set();
+      for (let r = 0; r < card.rows; r++) {
+        for (let c = 0; c < card.cols; c++) {
+          const span = card.spans[r][c];
+          if (!span.h && span.rs > 1) {
+            if (rowIndex > span.mr && rowIndex <= span.mr + span.rs - 1) {
+              midMergeSet.add(`${span.mr},${span.mc}`);
+            }
+          }
+        }
+      }
+
+      midMergeSet.forEach(key => {
+        const [mr, mc] = key.split(',').map(Number);
+        card.spans[mr][mc].rs += 1;
+      });
+
+      const newRowData = Array(card.cols).fill('');
+      const newRowSpans = [];
+
+      for (let c = 0; c < card.cols; c++) {
+        let isInsideMerge = false;
+        let masterR = rowIndex, masterC = c;
+
+        if (rowIndex > 0 && rowIndex < card.rows) {
+          const topSpan = card.spans[rowIndex - 1][c];
+          const bottomSpan = card.spans[rowIndex][c];
+          if (topSpan.mr === bottomSpan.mr && topSpan.mc === bottomSpan.mc) {
+            isInsideMerge = true;
+            masterR = topSpan.mr;
+            masterC = topSpan.mc;
+          }
+        }
+
+        newRowSpans.push(isInsideMerge
+          ? { rs: 1, cs: 1, h: true, mr: masterR, mc: masterC }
+          : { rs: 1, cs: 1, h: false, mr: rowIndex, mc: c }
+        );
+      }
+
+      card.data.splice(rowIndex, 0, newRowData);
+      card.spans.splice(rowIndex, 0, newRowSpans);
+
+      for (let r = rowIndex + 1; r <= card.rows; r++) {
+        for (let c = 0; c < card.cols; c++) {
+          const span = card.spans[r][c];
+          if (span.mr >= rowIndex) {
+            span.mr += 1;
+          }
+        }
+      }
+
+      card.rows += 1;
+      if (!card.rowHeights) card.rowHeights = Array(card.rows - 1).fill(30);
+      card.rowHeights.splice(rowIndex, 0, 30);
+
+      if (!card.rowAligns) card.rowAligns = Array(card.rows - 1).fill('auto');
+      card.rowAligns.splice(rowIndex, 0, 'auto');
+
+      pushHistory();
+      renderCards();
+    }
+
+    /* 行の削除 */
+    function deleteRow(cardId, rowIndex) {
+      document.getElementById('jog-popup').style.display = 'none';
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      if (card.rows <= 1) {
+        alert("これ以上行を削除できません。");
+        return;
+      }
+
+      ensureSpans(card);
+
+      for (let c = 0; c < card.cols; c++) {
+        const span = card.spans[rowIndex][c];
+        if (!span.h) {
+          if (span.rs > 1) {
+            const nextSpan = card.spans[rowIndex + 1][c];
+            nextSpan.h = false;
+            nextSpan.rs = span.rs - 1;
+            nextSpan.cs = span.cs;
+            nextSpan.mr = rowIndex + 1;
+            nextSpan.mc = c;
+            if (card.data[rowIndex + 1][c] === '') {
+              card.data[rowIndex + 1][c] = card.data[rowIndex][c];
+            }
+            for (let br = rowIndex + 1; br < rowIndex + span.rs; br++) {
+              for (let bc = c; bc < c + span.cs; bc++) {
+                card.spans[br][bc].mr = rowIndex + 1;
+                card.spans[br][bc].mc = c;
+              }
+            }
+          }
+        } else {
+          const mr = span.mr;
+          const mc = span.mc;
+          const master = card.spans[mr][mc];
+          if (master && master.rs > 1) {
+            master.rs -= 1;
+          }
+        }
+      }
+
+      card.data.splice(rowIndex, 1);
+      card.spans.splice(rowIndex, 1);
+
+      card.rows -= 1;
+
+      for (let r = 0; r < card.rows; r++) {
+        for (let c = 0; c < card.cols; c++) {
+          const s = card.spans[r][c];
+          if (s.mr > rowIndex) {
+            s.mr -= 1;
+          }
+        }
+      }
+
+      if (card.rowHeights) card.rowHeights.splice(rowIndex, 1);
+      if (card.rowAligns) card.rowAligns.splice(rowIndex, 1);
+
       pushHistory();
       renderCards();
     }
@@ -1359,21 +1670,27 @@
           const deltaY = moveEv.clientY - startY;
 
           if (type === 'col') {
-            const currentW = (card.colWidths && card.colWidths[index]) ? card.colWidths[index] : 100;
-            const newW = Math.max(30, currentW + deltaX);
-            const mm = (newW * 0.264583).toFixed(1);
+            const currentW = (card.colWidths && card.colWidths[index]) ? card.colWidths[index] : 85;
+            let newW = Math.max(20, currentW + deltaX);
+
+            let otherWidthsSum = card.colWidths.reduce((sum, w, i) => i === index ? sum : sum + w, 0);
+            if (otherWidthsSum + newW > MAX_TABLE_WIDTH_PX) {
+              newW = Math.max(20, MAX_TABLE_WIDTH_PX - otherWidthsSum);
+            }
+
+            const mm = (newW / MM_TO_PX).toFixed(1);
             guideCol.style.left = `${moveEv.clientX}px`;
             tooltip.style.left = `${moveEv.clientX - 20}px`;
             tooltip.style.top = `${moveEv.clientY - 35}px`;
-            tooltip.innerText = `幅: ${mm}mm (${Math.round(newW)}px)`;
+            tooltip.innerText = `${mm}mm`;
           } else {
             const currentH = (card.rowHeights && card.rowHeights[index]) ? card.rowHeights[index] : 30;
             const newH = Math.max(20, currentH + deltaY);
-            const mm = (newH * 0.264583).toFixed(1);
+            const mm = (newH / MM_TO_PX).toFixed(1);
             guideRow.style.top = `${moveEv.clientY}px`;
             tooltip.style.left = `${moveEv.clientX + 10}px`;
             tooltip.style.top = `${moveEv.clientY - 25}px`;
-            tooltip.innerText = `高さ: ${mm}mm (${Math.round(newH)}px)`;
+            tooltip.innerText = `${mm}mm`;
           }
         };
 
@@ -1388,8 +1705,13 @@
           const deltaY = upEv.clientY - startY;
 
           if (type === 'col') {
-            if (!card.colWidths) card.colWidths = Array(card.cols).fill(100);
-            card.colWidths[index] = Math.max(30, card.colWidths[index] + deltaX);
+            if (!card.colWidths) card.colWidths = Array(card.cols).fill(85);
+            let newW = Math.max(20, card.colWidths[index] + deltaX);
+            let otherWidthsSum = card.colWidths.reduce((sum, w, i) => i === index ? sum : sum + w, 0);
+            if (otherWidthsSum + newW > MAX_TABLE_WIDTH_PX) {
+              newW = Math.max(20, MAX_TABLE_WIDTH_PX - otherWidthsSum);
+            }
+            card.colWidths[index] = newW;
           } else {
             if (!card.rowHeights) card.rowHeights = Array(card.rows).fill(30);
             card.rowHeights[index] = Math.max(20, card.rowHeights[index] + deltaY);
@@ -1409,6 +1731,170 @@
       e.target.addEventListener('pointerleave', cancelHold, { once: true });
     }
 
+    /* セル結合・解除関連関数 */
+    function toggleMergeMode(cardId, isChecked) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      card.isMergeMode = isChecked;
+      card.selectedCell = null;
+      renderCards();
+    }
+
+    function selectCellForUnmerge(cardId, r, c) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      card.selectedCell = { r, c };
+    }
+
+    function handleCellClickForMerge(cardId, r, c) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      ensureSpans(card);
+
+      if (!card.selectedCell) {
+        card.selectedCell = { r, c };
+        renderCards();
+        return;
+      }
+
+      const first = card.selectedCell;
+      const second = { r, c };
+
+      if (first.r === second.r && first.c === second.c) {
+        card.selectedCell = null;
+        renderCards();
+        return;
+      }
+
+      const span1 = card.spans[first.r][first.c];
+      const span2 = card.spans[second.r][second.c];
+
+      const m1 = { r: span1.mr, c: span1.mc };
+      const m2 = { r: span2.mr, c: span2.mc };
+
+      const masterSpan1 = card.spans[m1.r][m1.c];
+      const masterSpan2 = card.spans[m2.r][m2.c];
+
+      const r1_min = m1.r;
+      const r1_max = m1.r + masterSpan1.rs - 1;
+      const c1_min = m1.c;
+      const c1_max = m1.c + masterSpan1.cs - 1;
+
+      const r2_min = m2.r;
+      const r2_max = m2.r + masterSpan2.rs - 1;
+      const c2_min = m2.c;
+      const c2_max = m2.c + masterSpan2.cs - 1;
+
+      const bound_r_min = Math.min(r1_min, r2_min);
+      const bound_r_max = Math.max(r1_max, r2_max);
+      const bound_c_min = Math.min(c1_min, c2_min);
+      const bound_c_max = Math.max(c1_max, c2_max);
+
+      const boundCellsCount = (bound_r_max - bound_r_min + 1) * (bound_c_max - bound_c_min + 1);
+      const r1CellsCount = masterSpan1.rs * masterSpan1.cs;
+      const r2CellsCount = masterSpan2.rs * masterSpan2.cs;
+
+      if (boundCellsCount !== r1CellsCount + r2CellsCount) {
+        alert("結合した結果が長方形になるように実行してください");
+        card.selectedCell = null;
+        renderCards();
+        return;
+      }
+
+      const t1 = (card.data[m1.r] && card.data[m1.r][m1.c]) ? card.data[m1.r][m1.c].trim() : '';
+      const t2 = (card.data[m2.r] && card.data[m2.r][m2.c]) ? card.data[m2.r][m2.c].trim() : '';
+
+      let mergedText = '';
+      if (t1 && t2) {
+        mergedText = `${t1}｜${t2}`;
+      } else if (t1) {
+        mergedText = t1;
+      } else if (t2) {
+        mergedText = t2;
+      }
+
+      const newRs = bound_r_max - bound_r_min + 1;
+      const newCs = bound_c_max - bound_c_min + 1;
+
+      for (let br = bound_r_min; br <= bound_r_max; br++) {
+        for (let bc = bound_c_min; bc <= bound_c_max; bc++) {
+          if (br === bound_r_min && bc === bound_c_min) {
+            card.data[br][bc] = mergedText;
+            card.spans[br][bc] = {
+              rs: newRs,
+              cs: newCs,
+              h: false,
+              mr: bound_r_min,
+              mc: bound_c_min
+            };
+          } else {
+            card.data[br][bc] = '';
+            card.spans[br][bc] = {
+              rs: 1,
+              cs: 1,
+              h: true,
+              mr: bound_r_min,
+              mc: bound_c_min
+            };
+          }
+        }
+      }
+
+      card.isMergeMode = false;
+      card.selectedCell = null;
+      pushHistory();
+      renderCards();
+    }
+
+    function unmergeSelectedCell(cardId) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      ensureSpans(card);
+
+      if (!card.selectedCell) {
+        alert("解除したいセルを選択してください。");
+        return;
+      }
+
+      const { r, c } = card.selectedCell;
+      const currentSpan = card.spans[r][c];
+      const mr = currentSpan.mr;
+      const mc = currentSpan.mc;
+      const masterSpan = card.spans[mr][mc];
+
+      if (masterSpan.rs === 1 && masterSpan.cs === 1) {
+        return;
+      }
+
+      const bound_r_min = mr;
+      const bound_r_max = mr + masterSpan.rs - 1;
+      const bound_c_min = mc;
+      const bound_c_max = mc + masterSpan.cs - 1;
+
+      const fullText = card.data[mr][mc] || '';
+
+      for (let br = bound_r_min; br <= bound_r_max; br++) {
+        for (let bc = bound_c_min; bc <= bound_c_max; bc++) {
+          card.spans[br][bc] = {
+            rs: 1,
+            cs: 1,
+            h: false,
+            mr: br,
+            mc: bc
+          };
+          if (br === mr && bc === mc) {
+            card.data[br][bc] = fullText;
+          } else {
+            card.data[br][bc] = '';
+          }
+        }
+      }
+
+      card.selectedCell = null;
+      pushHistory();
+      renderCards();
+    }
+
     function renderViewImage(card) {
       const imgs = card.images || (card.src ? [card.src] : []);
       if (imgs.length === 0) {
@@ -1421,16 +1907,6 @@
         imgsHtml += `<img src="${src}">`;
       });
       imgsHtml += `</div>`;
-
-      if (imgs.length === 1 && card.comment) {
-        const isLeft = card.commentPos === 'left';
-        return `
-          <div class="image-container-box ${isLeft ? 'pos-left' : ''}">
-            ${imgsHtml}
-            <div style="font-size:calc(var(--ui-font-size) * 0.85); color:#334155; flex:1; text-align:center;">${escapeHtml(card.comment)}</div>
-          </div>
-        `;
-      }
       return imgsHtml;
     }
 
@@ -1488,16 +1964,6 @@
       reader.readAsDataURL(file);
     }
 
-    function updateImageComment(id, val) {
-      const card = getActiveReport().cards.find(c => c.id === id);
-      if (card) card.comment = val;
-    }
-
-    function updateImagePos(id, val) {
-      const card = getActiveReport().cards.find(c => c.id === id);
-      if (card) { card.commentPos = val; pushHistory(); }
-    }
-
     function autoResizeTextarea(el) {
       el.style.height = 'auto';
       el.style.height = (el.scrollHeight + 2) + 'px';
@@ -1520,15 +1986,17 @@
         newCard.text = '新規テキスト'; 
       }
       else if (type === 'table') { 
-        newCard.rows = 2; newCard.cols = 2; newCard.zoom = 1.0;
+        newCard.rows = 2; newCard.cols = 2;
         newCard.data = [['',''],['','']]; 
         newCard.colAligns = ['auto','auto']; newCard.rowAligns = ['auto','auto'];
-        newCard.colWidths = [100, 100]; newCard.rowHeights = [30, 30];
+        newCard.colWidths = [85, 85]; newCard.rowHeights = [30, 30];
+        newCard.spans = [
+          [{rs:1,cs:1,h:false,mr:0,mc:0},{rs:1,cs:1,h:false,mr:0,mc:1}],
+          [{rs:1,cs:1,h:false,mr:1,mc:0},{rs:1,cs:1,h:false,mr:1,mc:1}]
+        ];
       }
       else if (type === 'image') { 
         newCard.images = []; 
-        newCard.comment = ''; 
-        newCard.commentPos = 'right'; 
       }
 
       rep.cards.push(newCard);
@@ -1628,17 +2096,47 @@
 
     function changeTableSize(id, rows, cols) {
       const card = getActiveReport().cards.find(c => c.id === id);
-      card.rows = parseInt(rows);
-      card.cols = parseInt(cols);
+      card.rows = Math.max(1, Math.min(26, parseInt(rows)));
+      card.cols = Math.max(1, Math.min(26, parseInt(cols)));
+      
+      if (!card.colWidths) card.colWidths = [];
+      while (card.colWidths.length < card.cols) card.colWidths.push(85);
+      card.colWidths = card.colWidths.slice(0, card.cols);
+
+      if (!card.rowHeights) card.rowHeights = [];
+      while (card.rowHeights.length < card.rows) card.rowHeights.push(30);
+      card.rowHeights = card.rowHeights.slice(0, card.rows);
+
+      if (!card.colAligns) card.colAligns = [];
+      while (card.colAligns.length < card.cols) card.colAligns.push('auto');
+      card.colAligns = card.colAligns.slice(0, card.cols);
+
+      if (!card.rowAligns) card.rowAligns = [];
+      while (card.rowAligns.length < card.rows) card.rowAligns.push('auto');
+      card.rowAligns = card.rowAligns.slice(0, card.rows);
+
       const newData = [];
+      const newSpans = [];
       for (let r = 0; r < card.rows; r++) {
-        const row = [];
+        const rowData = [];
+        const rowSpans = [];
         for (let c = 0; c < card.cols; c++) {
-          row.push((card.data[r] && card.data[r][c]) ? card.data[r][c] : '');
+          rowData.push((card.data[r] && card.data[r][c] !== undefined) ? card.data[r][c] : '');
+          if (card.spans && card.spans[r] && card.spans[r][c]) {
+            rowSpans.push(card.spans[r][c]);
+          } else {
+            rowSpans.push({ rs: 1, cs: 1, h: false, mr: r, mc: c });
+          }
         }
-        newData.push(row);
+        newData.push(rowData);
+        newSpans.push(rowSpans);
       }
       card.data = newData;
+      card.spans = newSpans;
+      ensureSpans(card);
+      
+      checkAndLimitTableWidth(card);
+
       pushHistory();
       renderCards();
     }
@@ -1666,7 +2164,6 @@
       }
     }
 
-    /* 表示ポイントサイズ変更処理 */
     function changePointSize(delta) {
       let newSize = currentPointSize + delta;
       if (newSize < 7.0) newSize = 7.0;
@@ -1677,7 +2174,6 @@
       renderCards();
     }
 
-    /* === 印刷設定モーダル操作と実行 === */
     function openPrintModal() {
       document.getElementById('print-modal').classList.add('active');
     }
@@ -1690,14 +2186,11 @@
       const lines = parseInt(document.getElementById('print-lines-slider').value, 10);
       const validLines = Math.min(Math.max(lines, 30), 50);
       
-      // CSS変数に行数をセット
       document.documentElement.style.setProperty('--lines-per-page', validLines);
       closePrintModal();
       
-      // 印刷コンテンツ領域の生成
       generatePrintContent();
 
-      // DOM更新完了後に印刷ダイアログを呼び出し
       requestAnimationFrame(() => {
         window.print();
       });
@@ -1707,7 +2200,9 @@
       const rep = getActiveReport();
       const target = document.getElementById('a4-target');
       target.innerHTML = '';
-      target.className = 'print-content'; // A4レイアウト用のクラス付与
+      target.className = 'print-content';
+
+      if (!rep) return;
 
       rep.cards.forEach(card => {
         if (card.type === 'title') {
@@ -1728,21 +2223,40 @@
           div.innerText = card.text;
           target.appendChild(div);
         } else if (card.type === 'table') {
+          ensureSpans(card);
           const table = document.createElement('table');
           table.className = 'out-table';
+          
+          const totalW = (card.colWidths && card.colWidths.length === card.cols) 
+            ? card.colWidths.reduce((a, b) => a + b, 0) 
+            : card.cols * 85;
+
           if (card.colWidths) {
             const colgroup = document.createElement('colgroup');
             for (let c = 0; c < card.cols; c++) {
-              colgroup.innerHTML += `<col style="width:${card.colWidths[c] || 100}px;">`;
+              const col = document.createElement('col');
+              const w = card.colWidths[c] || 85;
+              const pct = ((w / totalW) * 100).toFixed(2);
+              col.style.width = `${pct}%`;
+              colgroup.appendChild(col);
             }
             table.appendChild(colgroup);
           }
+
           for (let r = 0; r < card.rows; r++) {
             const tr = document.createElement('tr');
+            const h = (card.rowHeights && card.rowHeights[r]) ? card.rowHeights[r] : 'auto';
+            if (typeof h === 'number') tr.style.height = `${h}px`;
+
             for (let c = 0; c < card.cols; c++) {
+              const span = card.spans[r][c];
+              if (span.h) continue;
+
               const td = document.createElement('td');
               const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
               td.className = getCellAlignmentClass(card, r, c, val);
+              if (span.rs > 1) td.rowSpan = span.rs;
+              if (span.cs > 1) td.colSpan = span.cs;
               td.innerText = val;
               tr.appendChild(td);
             }
@@ -1751,27 +2265,33 @@
           target.appendChild(table);
         } else if (card.type === 'image') {
           const imgs = card.images || (card.src ? [card.src] : []);
-          const box = document.createElement('div');
-          box.className = 'out-image-box';
-          
-          let imgsHtml = `<div class="image-grid" style="display:flex; flex-direction:column; gap:4px;">`;
-          imgs.forEach(src => { imgsHtml += `<img src="${src}" style="max-width:100%; height:auto;">`; });
-          imgsHtml += `</div>`;
-
-          if (imgs.length === 1 && card.comment) {
-            const commentHtml = `<div class="img-comment">${escapeHtml(card.comment)}</div>`;
-            box.innerHTML = (card.commentPos === 'left') ? (commentHtml + imgsHtml) : (imgsHtml + commentHtml);
-          } else {
-            box.innerHTML = imgsHtml;
+          if (imgs.length > 0) {
+            const box = document.createElement('div');
+            box.className = 'out-image-box';
+            
+            const grid = document.createElement('div');
+            grid.className = `image-grid count-${imgs.length}`;
+            
+            imgs.forEach(src => {
+              const img = document.createElement('img');
+              img.src = src;
+              grid.appendChild(img);
+            });
+            
+            box.appendChild(grid);
+            target.appendChild(box);
           }
-          target.appendChild(box);
         }
       });
     }
 
     function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      if (typeof str !== 'string') return '';
+      return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
     }
   </script>
 </body>
