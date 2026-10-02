@@ -145,9 +145,14 @@
     .resize-guide-line.row { border-top: 2px dashed #2563eb; left: 0; right: 0; }
     .resize-tooltip { display: none; position: fixed; z-index: 501; background: #2563eb; color: #fff; font-size: calc(var(--ui-font-size) * 0.8); padding: 2px 6px; border-radius: 4px; font-weight: bold; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
 
+    /* --- HTML5標準 dialog バックドロップ --- */
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.5);
+    }
+
     #a4-print-container { display: none; }
 
-    /* --- 印刷用CSS仕様（余白 10mm に調整） --- */
+    /* --- 印刷用CSS仕様（仕様書に基づき余白 20mm に指定） --- */
     @media print {
       @page {
         size: A4 portrait;
@@ -163,16 +168,16 @@
         -webkit-print-color-adjust: exact;
       }
 
-      .no-print, .container, .app-header, .modal-overlay, .jog-popup, .resize-guide-line, .resize-tooltip { display: none !important; }
+      .no-print, .container, .app-header, .modal-overlay, .jog-popup, .resize-guide-line, .resize-tooltip, dialog { display: none !important; }
       #a4-print-container { display: block !important; }
       
       .print-content {
         box-sizing: border-box;
         width: 210mm !important;
         height: 297mm !important;
-        padding: 10mm !important;
-        font-size: calc(190mm / 44) !important;
-        line-height: calc(277mm / var(--lines-per-page)) !important;
+        padding: 20mm !important;
+        font-size: 10.5pt !important;
+        line-height: calc(257mm / var(--lines-per-page)) !important;
         text-align: justify;
         text-justify: inter-ideograph;
         word-break: break-all;
@@ -192,19 +197,6 @@
         break-after: avoid !important;
         page-break-after: avoid !important;
       }
-
-      .out-text, .out-title, .out-datetime { word-break: break-all; white-space: pre-wrap; width: 100%; margin: 0; }
-      .out-title { text-align: center; font-size: 1.4em; font-weight: bold; margin: 0; }
-      .out-title.underline { text-decoration: underline; }
-      .out-datetime { text-align: right; font-size: 0.9em; margin: 0; }
-      .out-text { text-align: left; margin: 0; }
-      
-      .out-table { width: 100%; border-collapse: collapse; margin: 2px 0; table-layout: fixed; }
-      .out-table td, .out-table th { border: 1px solid #000; padding: 4px; font-size: 0.95em; word-break: break-all; }
-      
-      .out-image-box { display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: center; margin: 2px 0; width: 100%; }
-      .out-image-box .image-grid { display: flex; flex-direction: column; width: 100%; gap: 4px; align-items: center; }
-      .out-image-box img { max-width: 100%; max-height: 180px; object-fit: contain; }
     }
   </style>
 </head>
@@ -314,7 +306,7 @@
     </div>
   </div>
 
-  <!-- 印刷設定モーダル -->
+  <!-- 印刷設定モーダル（行数選択） -->
   <div id="print-modal" class="modal-overlay">
     <div class="settings-modal">
       <div class="settings-header">
@@ -332,10 +324,32 @@
       </div>
 
       <div style="text-align: right; margin-top: 20px;">
-        <button class="btn btn-success" onclick="executePrint()">この内容で印刷</button>
+        <button class="btn btn-success" onclick="openPreview()">プレビューを表示</button>
       </div>
     </div>
   </div>
+
+  <!-- 仕様書に基づく出力・印刷プレビュー モーダル (<dialog>) -->
+  <dialog id="previewModal" style="border:none; border-radius:8px; padding:12px; max-width:600px; width:92vw; box-shadow:0 4px 20px rgba(0,0,0,0.15); background:#f8fafc; margin:auto; box-sizing:border-box;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; gap:8px;">
+      <h3 style="margin:0; font-size:1.0rem; color:#0f172a; white-space:nowrap;">出力プレビュー (A4縮小)</h3>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-primary btn-sm" onclick="executePrint()">⬆️ 共有 / 印刷</button>
+        <button class="btn btn-light btn-sm" onclick="document.getElementById('previewModal').close()">✕ 閉じる</button>
+      </div>
+    </div>
+    
+    <!-- 外側のスクロール＆ビューポート容器 -->
+    <div style="width:100%; overflow-x:hidden; background:#cbd5e1; padding:10px 0; border-radius:6px; display:flex; justify-content:center;">
+      <!-- 縮小スケーラー：画面幅に合わせてA4用紙を全体縮小 -->
+      <div id="preview-scaler" style="width:100%; aspect-ratio: 1 / 1.414; position:relative; background:#fff; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
+        <div id="a4-page-content" style="width:210mm; height:297mm; position:absolute; top:0; left:0; transform-origin: top left;">
+          <!-- 実際のA4紙面内容（余白20mm保持） -->
+          <div id="previewContainer" style="width:210mm; min-height:297mm; padding:20mm; box-sizing:border-box; background:#fff; font-size:10pt;"></div>
+        </div>
+      </div>
+    </div>
+  </dialog>
 
   <!-- 一覧レポート操作ポップアップモーダル -->
   <div id="report-action-modal" class="modal-overlay" onclick="closeReportActionModal()">
@@ -412,6 +426,16 @@
     let historyStack = [];
     let historyIndex = -1;
     const MAX_HISTORY = 50;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
 
     function ensureSpans(card) {
       if (!card.spans) card.spans = [];
@@ -500,7 +524,7 @@
       });
 
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('.card') && !e.target.closest('.jog-popup') && !e.target.closest('.settings-modal') && !e.target.closest('.editor-tags-box')) {
+        if (!e.target.closest('.card') && !e.target.closest('.jog-popup') && !e.target.closest('.settings-modal') && !e.target.closest('.editor-tags-box') && !e.target.closest('dialog')) {
           activeCardId = null;
           renderCards();
         }
@@ -2090,63 +2114,57 @@
       if (dtCard && dtCard.autoUpdate) {
         const inputEl = document.querySelector(`.card[data-type="datetime"] input[placeholder*="日時"]`);
         if (inputEl) inputEl.value = dtCard.text;
-        renderReportList();
       }
     }
 
-    function changeTableSize(id, rows, cols) {
-      const card = getActiveReport().cards.find(c => c.id === id);
-      card.rows = Math.max(1, Math.min(26, parseInt(rows)));
-      card.cols = Math.max(1, Math.min(26, parseInt(cols)));
-      
-      if (!card.colWidths) card.colWidths = [];
-      while (card.colWidths.length < card.cols) card.colWidths.push(85);
-      card.colWidths = card.colWidths.slice(0, card.cols);
-
-      if (!card.rowHeights) card.rowHeights = [];
-      while (card.rowHeights.length < card.rows) card.rowHeights.push(30);
-      card.rowHeights = card.rowHeights.slice(0, card.rows);
-
-      if (!card.colAligns) card.colAligns = [];
-      while (card.colAligns.length < card.cols) card.colAligns.push('auto');
-      card.colAligns = card.colAligns.slice(0, card.cols);
-
-      if (!card.rowAligns) card.rowAligns = [];
-      while (card.rowAligns.length < card.rows) card.rowAligns.push('auto');
-      card.rowAligns = card.rowAligns.slice(0, card.rows);
-
-      const newData = [];
-      const newSpans = [];
-      for (let r = 0; r < card.rows; r++) {
-        const rowData = [];
-        const rowSpans = [];
-        for (let c = 0; c < card.cols; c++) {
-          rowData.push((card.data[r] && card.data[r][c] !== undefined) ? card.data[r][c] : '');
-          if (card.spans && card.spans[r] && card.spans[r][c]) {
-            rowSpans.push(card.spans[r][c]);
-          } else {
-            rowSpans.push({ rs: 1, cs: 1, h: false, mr: r, mc: c });
-          }
-        }
-        newData.push(rowData);
-        newSpans.push(rowSpans);
+    function updateTableCell(cardId, r, c, val) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (card && card.data[r]) {
+        card.data[r][c] = val;
       }
-      card.data = newData;
-      card.spans = newSpans;
-      ensureSpans(card);
-      
-      checkAndLimitTableWidth(card);
+    }
 
+    function changeTableSize(cardId, newRows, newCols) {
+      const card = getActiveReport().cards.find(c => c.id === cardId);
+      if (!card) return;
+      
+      newRows = parseInt(newRows);
+      newCols = parseInt(newCols);
+
+      while (card.rows < newRows) {
+        card.data.push(Array(card.cols).fill(''));
+        card.rows++;
+      }
+      while (card.rows > newRows) {
+        card.data.pop();
+        card.rows--;
+      }
+
+      for (let r = 0; r < card.rows; r++) {
+        while (card.data[r].length < newCols) {
+          card.data[r].push('');
+        }
+        while (card.data[r].length > newCols) {
+          card.data[r].pop();
+        }
+      }
+      card.cols = newCols;
+
+      if (!card.colWidths) card.colWidths = Array(card.cols).fill(85);
+      while (card.colWidths.length < card.cols) card.colWidths.push(85);
+      while (card.colWidths.length > card.cols) card.colWidths.pop();
+
+      if (!card.rowHeights) card.rowHeights = Array(card.rows).fill(30);
+      while (card.rowHeights.length < card.rows) card.rowHeights.push(30);
+      while (card.rowHeights.length > card.rows) card.rowHeights.pop();
+
+      ensureSpans(card);
+      checkAndLimitTableWidth(card);
       pushHistory();
       renderCards();
     }
 
-    function updateTableCell(id, r, c, val) {
-      const card = getActiveReport().cards.find(c => c.id === id);
-      if (!card.data[r]) card.data[r] = [];
-      card.data[r][c] = val;
-    }
-
+    /* モーダル表示・設定管理関数 */
     function openSettingsModal() {
       document.getElementById('settings-modal').classList.add('active');
     }
@@ -2155,23 +2173,18 @@
       document.getElementById('settings-modal').classList.remove('active');
     }
 
-    function updatePrintFont(fontType) {
-      currentPrintFont = fontType;
-      if (fontType === 'mincho') {
-        document.documentElement.style.setProperty('--print-font-family', '"Yu Mincho", "MS Mincho", "Hiragino Mincho ProN", serif');
-      } else {
-        document.documentElement.style.setProperty('--print-font-family', '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif');
-      }
+    function updatePrintFont(val) {
+      currentPrintFont = val;
+      const fontFam = val === 'mincho' 
+        ? '"Hiragino Mincho ProN", "MS Mincho", serif'
+        : '-apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif';
+      document.documentElement.style.setProperty('--print-font-family', fontFam);
     }
 
     function changePointSize(delta) {
-      let newSize = currentPointSize + delta;
-      if (newSize < 7.0) newSize = 7.0;
-      if (newSize > 20.0) newSize = 20.0;
-      currentPointSize = Math.round(newSize * 10) / 10;
+      currentPointSize = Math.max(7.0, Math.min(20.0, currentPointSize + delta));
       document.getElementById('btn-point-size-display').innerText = currentPointSize.toFixed(1);
       document.documentElement.style.setProperty('--ui-font-size', `${currentPointSize}pt`);
-      renderCards();
     }
 
     function openPrintModal() {
@@ -2182,116 +2195,118 @@
       document.getElementById('print-modal').classList.remove('active');
     }
 
-    function executePrint() {
-      const lines = parseInt(document.getElementById('print-lines-slider').value, 10);
-      const validLines = Math.min(Math.max(lines, 30), 50);
-      
-      document.documentElement.style.setProperty('--lines-per-page', validLines);
-      closePrintModal();
-      
-      generatePrintContent();
-
-      requestAnimationFrame(() => {
-        window.print();
-      });
-    }
-
-    function generatePrintContent() {
+    /* --- 仕様書要件：プレビュー表示 & コンテンツ生成ロジック --- */
+    function generateRepoContent() {
       const rep = getActiveReport();
-      const target = document.getElementById('a4-target');
-      target.innerHTML = '';
-      target.className = 'print-content';
+      if (!rep) return '';
 
-      if (!rep) return;
+      let html = `<div style="box-sizing:border-box; width:100%; font-size:10.5pt; font-family:var(--print-font-family); color:#000;">`;
 
       rep.cards.forEach(card => {
         if (card.type === 'title') {
-          const div = document.createElement('div');
-          div.className = `out-title ${card.underline ? 'underline' : ''}`;
-          div.innerText = card.text;
-          target.appendChild(div);
+          const u = card.underline ? 'text-decoration: underline;' : '';
+          html += `<h1 style="font-size: 14pt; font-weight: bold; text-align: center; margin: 8px 0; ${u}">${escapeHtml(card.text)}</h1>`;
         } else if (card.type === 'datetime') {
-          const div = document.createElement('div');
-          div.className = 'out-datetime';
-          let dtStr = card.text || '';
-          if (card.assignee) dtStr += (dtStr ? ' ' : '') + card.assignee;
-          div.innerText = dtStr;
-          target.appendChild(div);
+          let dt = card.text || '';
+          if (card.assignee) dt += ` ${card.assignee}`;
+          html += `<div style="font-size: 10.5pt; text-align: right; margin: 4px 0; color: #333;">${escapeHtml(dt)}</div>`;
         } else if (card.type === 'text') {
-          const div = document.createElement('div');
-          div.className = 'out-text';
-          div.innerText = card.text;
-          target.appendChild(div);
+          html += `<div style="font-size: 10.5pt; white-space: pre-wrap; word-break: break-all; margin: 6px 0; line-height: 1.5; text-align: left;">${escapeHtml(card.text)}</div>`;
         } else if (card.type === 'table') {
           ensureSpans(card);
-          const table = document.createElement('table');
-          table.className = 'out-table';
+          html += `<table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin: 8px 0;">`;
           
-          const totalW = (card.colWidths && card.colWidths.length === card.cols) 
-            ? card.colWidths.reduce((a, b) => a + b, 0) 
-            : card.cols * 85;
-
-          if (card.colWidths) {
-            const colgroup = document.createElement('colgroup');
+          if (card.colWidths && card.colWidths.length === card.cols) {
+            const totalW = card.colWidths.reduce((a, b) => a + b, 0);
+            html += `<colgroup>`;
             for (let c = 0; c < card.cols; c++) {
-              const col = document.createElement('col');
-              const w = card.colWidths[c] || 85;
-              const pct = ((w / totalW) * 100).toFixed(2);
-              col.style.width = `${pct}%`;
-              colgroup.appendChild(col);
+              const pct = ((card.colWidths[c] / totalW) * 100).toFixed(2);
+              html += `<col style="width:${pct}%;">`;
             }
-            table.appendChild(colgroup);
+            html += `</colgroup>`;
           }
 
           for (let r = 0; r < card.rows; r++) {
-            const tr = document.createElement('tr');
             const h = (card.rowHeights && card.rowHeights[r]) ? card.rowHeights[r] : 'auto';
-            if (typeof h === 'number') tr.style.height = `${h}px`;
-
+            const hAttr = typeof h === 'number' ? `height:${h}px;` : '';
+            html += `<tr style="${hAttr}">`;
             for (let c = 0; c < card.cols; c++) {
               const span = card.spans[r][c];
               if (span.h) continue;
 
-              const td = document.createElement('td');
               const val = (card.data[r] && card.data[r][c]) ? card.data[r][c] : '';
-              td.className = getCellAlignmentClass(card, r, c, val);
-              if (span.rs > 1) td.rowSpan = span.rs;
-              if (span.cs > 1) td.colSpan = span.cs;
-              td.innerText = val;
-              tr.appendChild(td);
+              const alignClass = getCellAlignmentClass(card, r, c, val);
+              const rsAttr = span.rs > 1 ? ` rowspan="${span.rs}"` : '';
+              const csAttr = span.cs > 1 ? ` colspan="${span.cs}"` : '';
+
+              html += `<td class="${alignClass}"${rsAttr}${csAttr} style="border: 1px solid #000; padding: 4px; font-size: 10.5pt; word-break: break-all;">${escapeHtml(val)}</td>`;
             }
-            table.appendChild(tr);
+            html += `</tr>`;
           }
-          target.appendChild(table);
+          html += `</table>`;
         } else if (card.type === 'image') {
           const imgs = card.images || (card.src ? [card.src] : []);
-          if (imgs.length > 0) {
-            const box = document.createElement('div');
-            box.className = 'out-image-box';
-            
-            const grid = document.createElement('div');
-            grid.className = `image-grid count-${imgs.length}`;
-            
-            imgs.forEach(src => {
-              const img = document.createElement('img');
-              img.src = src;
-              grid.appendChild(img);
-            });
-            
-            box.appendChild(grid);
-            target.appendChild(box);
-          }
+          imgs.forEach(src => {
+            html += `<div style="text-align: center; margin: 8px 0;"><img src="${src}" style="max-width: 100%; height: auto; max-height: 250px;"></div>`;
+          });
         }
       });
+
+      html += `</div>`;
+      return html;
     }
 
-    function escapeHtml(str) {
-      if (typeof str !== 'string') return '';
-      return str.replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+    function openPreview() {
+      closePrintModal();
+      const lines = document.getElementById('print-lines-slider').value;
+      document.documentElement.style.setProperty('--lines-per-page', lines);
+
+      const html = generateRepoContent();
+      const previewContainer = document.getElementById('previewContainer');
+      const a4Target = document.getElementById('a4-target');
+      
+      previewContainer.innerHTML = html;
+      a4Target.innerHTML = html;
+
+      const modal = document.getElementById('previewModal');
+      modal.showModal();
+
+      // モーダル表示後にスケールを計算して適用
+      setTimeout(adjustPreviewScale, 50);
+      window.addEventListener('resize', adjustPreviewScale);
+    }
+
+    // iPhone等の画面幅に合わせてA4を縮小表示させるロジック
+    function adjustPreviewScale() {
+      const container = document.getElementById('previewModal');
+      const scaler = document.getElementById('preview-scaler');
+      const a4Content = document.getElementById('a4-page-content');
+      
+      if (container && scaler && a4Content) {
+        // ダイアログ内の利用可能な幅 (パディング分を引く)
+        const availableWidth = container.clientWidth - 24; 
+        const maxWidth = Math.min(availableWidth, 600); 
+        
+        scaler.style.width = `${maxWidth}px`;
+        
+        // A4のピクセル幅（約793.7px = 210mm）に対するスケール比率
+        const scale = maxWidth / 793.7;
+        a4Content.style.transform = `scale(${scale})`;
+      }
+    }
+
+    function executePrint() {
+      const modal = document.getElementById('previewModal');
+      
+      // iOS Safari特有のバグ対応：
+      // <dialog> が開いた状態のまま window.print() を実行すると、
+      // 共有メニュー（PDF作成・転送ダイアログ）が起動せず無視されるため、一度モーダルを閉じます。
+      modal.close();
+      
+      // モーダルが閉じた直後にプリント・共有ダイアログを呼び出します。
+      setTimeout(() => {
+        window.print();
+      }, 300);
     }
   </script>
 </body>
